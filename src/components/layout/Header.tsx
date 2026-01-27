@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Video, Camera, Music, MessageCircle, Bot, Coins, Plus, User, LogOut, Settings, Image } from 'lucide-react';
+import { TopUpModal } from '@/components/topup/TopUpModal';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +25,7 @@ export function Header() {
   const { profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [topUpOpen, setTopUpOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -65,10 +68,13 @@ export function Header() {
           <Button
             size="sm"
             className="gradient-primary hover:opacity-90 transition-opacity rounded-xl gap-2"
+            onClick={() => setTopUpOpen(true)}
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Пополнить</span>
           </Button>
+
+          <TopUpModal open={topUpOpen} onOpenChange={setTopUpOpen} />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
