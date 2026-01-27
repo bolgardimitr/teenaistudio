@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import VideoStudio from "./pages/VideoStudio";
 import PhotoStudio from "./pages/PhotoStudio";
 import MusicStudio from "./pages/MusicStudio";
+import TextStudio from "./pages/TextStudio";
 import StudioPage from "./pages/StudioPage";
 import NotFound from "./pages/NotFound";
 
@@ -72,7 +73,7 @@ function AppRoutes() {
         path="/text"
         element={
           <ProtectedRoute>
-            <StudioPage />
+            <TextStudio />
           </ProtectedRoute>
         }
       />
