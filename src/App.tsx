@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import VideoStudio from "./pages/VideoStudio";
 import StudioPage from "./pages/StudioPage";
 import NotFound from "./pages/NotFound";
 
@@ -45,7 +46,7 @@ function AppRoutes() {
         path="/video"
         element={
           <ProtectedRoute>
-            <StudioPage />
+            <VideoStudio />
           </ProtectedRoute>
         }
       />
