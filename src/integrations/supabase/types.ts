@@ -186,6 +186,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_featured: boolean
           is_public: boolean
           likes_count: number
           model: string | null
@@ -199,6 +200,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_featured?: boolean
           is_public?: boolean
           likes_count?: number
           model?: string | null
@@ -212,6 +214,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_featured?: boolean
           is_public?: boolean
           likes_count?: number
           model?: string | null
@@ -223,6 +226,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      likes: {
+        Row: {
+          created_at: string
+          generation_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "likes_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
