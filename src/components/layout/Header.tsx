@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Video, Camera, Music, MessageCircle, Bot, Coins, Plus, User, LogOut, Settings, Image } from 'lucide-react';
+import { Video, Camera, Music, MessageCircle, Bot, Coins, Plus, User, LogOut, Settings, Image, Shield } from 'lucide-react';
 import { TopUpModal } from '@/components/topup/TopUpModal';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 export function Header() {
-  const { profile, signOut } = useAuth();
+  const { profile, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [topUpOpen, setTopUpOpen] = useState(false);
@@ -105,13 +105,17 @@ export function Header() {
                   Галерея
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Настройки
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {role === 'admin' && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="cursor-pointer">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Админ-панель
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 Выход
