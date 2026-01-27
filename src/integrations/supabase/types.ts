@@ -14,6 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          tokens_spent: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+          tokens_spent?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          tokens_spent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "agent_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_sessions: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          messages_count: number
+          title: string
+          tokens_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          messages_count?: number
+          title?: string
+          tokens_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          messages_count?: number
+          title?: string
+          tokens_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_sessions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          avatar: string
+          created_at: string
+          features: string[] | null
+          grade: string | null
+          id: string
+          is_template: boolean
+          name: string
+          style: string
+          subject: string
+          system_prompt: string
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar?: string
+          created_at?: string
+          features?: string[] | null
+          grade?: string | null
+          id?: string
+          is_template?: boolean
+          name: string
+          style?: string
+          subject: string
+          system_prompt: string
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar?: string
+          created_at?: string
+          features?: string[] | null
+          grade?: string | null
+          id?: string
+          is_template?: boolean
+          name?: string
+          style?: string
+          subject?: string
+          system_prompt?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generations: {
         Row: {
           created_at: string
