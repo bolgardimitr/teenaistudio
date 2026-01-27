@@ -10,7 +10,8 @@ import VideoStudio from "./pages/VideoStudio";
 import PhotoStudio from "./pages/PhotoStudio";
 import MusicStudio from "./pages/MusicStudio";
 import TextStudio from "./pages/TextStudio";
-import StudioPage from "./pages/StudioPage";
+import AgentsPage from "./pages/AgentsPage";
+import AgentChat from "./pages/AgentChat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,7 +82,15 @@ function AppRoutes() {
         path="/agents"
         element={
           <ProtectedRoute>
-            <StudioPage />
+            <AgentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/agents/:agentId/chat"
+        element={
+          <ProtectedRoute>
+            <AgentChat />
           </ProtectedRoute>
         }
       />
