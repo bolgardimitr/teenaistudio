@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import VideoStudio from "./pages/VideoStudio";
 import PhotoStudio from "./pages/PhotoStudio";
+import MusicStudio from "./pages/MusicStudio";
 import StudioPage from "./pages/StudioPage";
 import NotFound from "./pages/NotFound";
 
@@ -63,7 +64,7 @@ function AppRoutes() {
         path="/music"
         element={
           <ProtectedRoute>
-            <StudioPage />
+            <MusicStudio />
           </ProtectedRoute>
         }
       />
