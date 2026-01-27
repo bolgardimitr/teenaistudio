@@ -10,6 +10,7 @@ import { AchievementsSection } from "@/components/profile/AchievementsSection";
 import { MyWorksSection } from "@/components/profile/MyWorksSection";
 import { PlanSection } from "@/components/profile/PlanSection";
 import { SettingsSection } from "@/components/profile/SettingsSection";
+import { TopUpModal } from "@/components/topup/TopUpModal";
 import { DAILY_BONUS_BY_ROLE, STREAK_BONUSES, XP_REWARDS } from "@/lib/gamification";
 
 interface Profile {
@@ -75,7 +76,7 @@ export default function ProfilePage() {
     level: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
-
+  const [topUpOpen, setTopUpOpen] = useState(false);
   useEffect(() => {
     if (user) {
       loadAllData();
@@ -340,7 +341,10 @@ export default function ProfilePage() {
           role={role}
           dailyBonusClaimedAt={profile.daily_bonus_claimed_at}
           onClaimBonus={handleClaimBonus}
+          onTopUp={() => setTopUpOpen(true)}
         />
+        
+        <TopUpModal open={topUpOpen} onOpenChange={setTopUpOpen} />
 
         {/* Achievements Section */}
         <AchievementsSection

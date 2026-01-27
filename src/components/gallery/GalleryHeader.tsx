@@ -10,7 +10,7 @@ export function GalleryHeader({ searchQuery, onSearchChange }: GalleryHeaderProp
   return (
     <div className="text-center space-y-4 mb-8">
       <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-pink-500 bg-clip-text text-transparent">
-        🖼 Галерея TEEN.AI
+        <span className="not-italic">🖼️</span> Галерея TEEN.AI
       </h1>
       <p className="text-muted-foreground text-lg">
         Лучшие работы наших учеников

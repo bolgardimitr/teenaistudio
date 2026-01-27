@@ -12,6 +12,7 @@ interface TokensSectionProps {
   role: string;
   dailyBonusClaimedAt: string | null;
   onClaimBonus: () => Promise<void>;
+  onTopUp?: () => void;
 }
 
 export function TokensSection({
@@ -21,6 +22,7 @@ export function TokensSection({
   role,
   dailyBonusClaimedAt,
   onClaimBonus,
+  onTopUp,
 }: TokensSectionProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [timeUntilNext, setTimeUntilNext] = useState("");
@@ -82,7 +84,10 @@ export function TokensSection({
           <p className="text-sm text-muted-foreground mb-4">
             Потрачено за всё время: {totalSpent} токенов
           </p>
-          <Button className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+          <Button 
+            onClick={onTopUp}
+            className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+          >
             <Sparkles className="w-4 h-4 mr-2" />
             Пополнить
           </Button>
