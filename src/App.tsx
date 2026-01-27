@@ -16,6 +16,16 @@ import ProfilePage from "./pages/ProfilePage";
 import GalleryPage from "./pages/GalleryPage";
 import NotFound from "./pages/NotFound";
 
+// Admin pages
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminGenerations from "./pages/admin/AdminGenerations";
+import AdminTransactions from "./pages/admin/AdminTransactions";
+import AdminAgents from "./pages/admin/AdminAgents";
+import AdminGallery from "./pages/admin/AdminGallery";
+import AdminSettings from "./pages/admin/AdminSettings";
+
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -31,6 +41,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, role, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -105,6 +137,25 @@ function AppRoutes() {
         }
       />
       <Route path="/gallery" element={<GalleryPage />} />
+      
+      {/* Admin Routes */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="generations" element={<AdminGenerations />} />
+        <Route path="transactions" element={<AdminTransactions />} />
+        <Route path="agents" element={<AdminAgents />} />
+        <Route path="gallery" element={<AdminGallery />} />
+        <Route path="settings" element={<AdminSettings />} />
+      </Route>
+      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
