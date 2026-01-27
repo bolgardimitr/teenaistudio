@@ -12,6 +12,7 @@ import MusicStudio from "./pages/MusicStudio";
 import TextStudio from "./pages/TextStudio";
 import AgentsPage from "./pages/AgentsPage";
 import AgentChat from "./pages/AgentChat";
+import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -91,6 +92,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AgentChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />
