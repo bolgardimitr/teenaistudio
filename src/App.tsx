@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import VideoStudio from "./pages/VideoStudio";
+import PhotoStudio from "./pages/PhotoStudio";
 import StudioPage from "./pages/StudioPage";
 import NotFound from "./pages/NotFound";
 
@@ -54,7 +55,7 @@ function AppRoutes() {
         path="/photo"
         element={
           <ProtectedRoute>
-            <StudioPage />
+            <PhotoStudio />
           </ProtectedRoute>
         }
       />
