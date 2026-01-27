@@ -365,7 +365,10 @@ export type Database = {
           amount: number
           created_at: string
           description: string | null
+          external_id: string | null
           id: string
+          metadata: Json | null
+          status: string
           type: string
           user_id: string
         }
@@ -373,7 +376,10 @@ export type Database = {
           amount: number
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
+          metadata?: Json | null
+          status?: string
           type: string
           user_id: string
         }
@@ -381,7 +387,10 @@ export type Database = {
           amount?: number
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
+          metadata?: Json | null
+          status?: string
           type?: string
           user_id?: string
         }
