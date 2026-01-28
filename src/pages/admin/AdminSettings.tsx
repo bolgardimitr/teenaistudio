@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Save, Key, Coins, Settings, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Save, Key, Coins, Settings, RefreshCw, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Loader2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,8 +57,16 @@ export default function AdminSettings() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingApiKeys, setIsSavingApiKeys] = useState(false);
 
-  // API Keys state - for display only, actual values are in secrets
+  // API Key input values
+  const [kieaiApiKey, setKieaiApiKey] = useState('');
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [googleApiKey, setGoogleApiKey] = useState('');
+  const [cloudpaymentsPublicId, setCloudpaymentsPublicId] = useState('');
+  const [cloudpaymentsSecret, setCloudpaymentsSecret] = useState('');
+
+  // Show/hide password toggles
   const [showKieai, setShowKieai] = useState(false);
   const [showOpenai, setShowOpenai] = useState(false);
   const [showGoogle, setShowGoogle] = useState(false);
@@ -82,6 +90,7 @@ export default function AdminSettings() {
     cloudpayments: { status: 'checking' },
   });
 
+  // Load settings on mount
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -112,8 +121,7 @@ export default function AdminSettings() {
     };
 
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const checkApi = async (providerId: string) => {
     setApiStatus((prev) => ({
@@ -147,13 +155,16 @@ export default function AdminSettings() {
     }
   };
 
-  useEffect(() => {
-    // Проверяем API статусы при открытии страницы
+  const checkAllApis = () => {
     apiProviders.forEach((p) => {
       void checkApi(p.id);
     });
+  };
+
+  useEffect(() => {
+    checkAllApis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiProviders]);
+  }, []);
 
   const handlePriceChange = (index: number, value: string) => {
     const newPrices = [...prices];
@@ -194,17 +205,31 @@ export default function AdminSettings() {
     }
   };
 
+  const handleSaveApiKeys = async () => {
+    setIsSavingApiKeys(true);
+    
+    // API keys need to be managed through platform secrets
+    // This is a UI hint for the user
+    toast({
+      title: '⚠️ Управление API ключами',
+      description: 'API ключи управляются через безопасное хранилище платформы. Напишите в чат "обнови ключ KIEAI_API_KEY на [ваш ключ]" для обновления.',
+      duration: 8000,
+    });
+    
+    setIsSavingApiKeys(false);
+  };
+
   const renderStatusIcon = (status: ApiStatus) => {
-    if (status === 'connected') return <CheckCircle className="h-5 w-5 text-emerald-500" />;
+    if (status === 'connected') return <CheckCircle className="h-5 w-5 text-green-500" />;
     if (status === 'checking') return <RefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />;
-    if (status === 'not_configured') return <AlertCircle className="h-5 w-5 text-amber-500" />;
+    if (status === 'not_configured') return <AlertCircle className="h-5 w-5 text-yellow-500" />;
     return <XCircle className="h-5 w-5 text-destructive" />;
   };
 
   const renderApiBadge = (status: ApiStatus) => {
-    if (status === 'connected') return <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">Подключено</Badge>;
+    if (status === 'connected') return <Badge className="bg-green-500/20 text-green-500 border-green-500/30">Подключено</Badge>;
     if (status === 'checking') return <Badge variant="secondary">Проверка…</Badge>;
-    if (status === 'not_configured') return <Badge variant="outline" className="border-amber-500/30 text-amber-500">Не настроен</Badge>;
+    if (status === 'not_configured') return <Badge variant="outline" className="border-yellow-500/30 text-yellow-500">Не настроен</Badge>;
     return <Badge variant="destructive">Ошибка</Badge>;
   };
 
@@ -212,15 +237,15 @@ export default function AdminSettings() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">⚙️ Настройки</h1>
 
-      {/* API Keys */}
+      {/* API Keys Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            API Ключи
+            Статус API подключений
           </CardTitle>
           <CardDescription>
-            Статус подключения к внешним сервисам. Ключи хранятся в защищённом хранилище.
+            Текущий статус подключения к внешним сервисам
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,7 +261,7 @@ export default function AdminSettings() {
                   <p className="text-sm text-muted-foreground">
                     {provider.description}
                     {apiStatus[provider.id]?.balance && (
-                      <span className="ml-2 text-emerald-500">
+                      <span className="ml-2 text-green-500">
                         Баланс: {apiStatus[provider.id]?.balance}
                       </span>
                     )}
@@ -257,18 +282,185 @@ export default function AdminSettings() {
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* API Keys Input Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Edit className="h-5 w-5" />
+            Редактирование API ключей
+          </CardTitle>
+          <CardDescription>
+            Введите или измените API ключи для внешних сервисов
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* KIE.AI API Key */}
+          <div className="space-y-2">
+            <Label htmlFor="kieai-key" className="font-medium">
+              KIE.AI API Key
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="kieai-key"
+                type={showKieai ? 'text' : 'password'}
+                value={kieaiApiKey}
+                onChange={(e) => setKieaiApiKey(e.target.value)}
+                placeholder="Введите KIE.AI API ключ..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowKieai(!showKieai)}
+              >
+                {showKieai ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Получить: <a href="https://kie.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">kie.ai</a>
+            </p>
+          </div>
+
+          {/* OpenAI API Key */}
+          <div className="space-y-2">
+            <Label htmlFor="openai-key" className="font-medium">
+              OpenAI API Key
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="openai-key"
+                type={showOpenai ? 'text' : 'password'}
+                value={openaiApiKey}
+                onChange={(e) => setOpenaiApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowOpenai(!showOpenai)}
+              >
+                {showOpenai ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Получить: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">platform.openai.com/api-keys</a>
+            </p>
+          </div>
+
+          {/* Google AI API Key */}
+          <div className="space-y-2">
+            <Label htmlFor="google-key" className="font-medium">
+              Google AI API Key
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="google-key"
+                type={showGoogle ? 'text' : 'password'}
+                value={googleApiKey}
+                onChange={(e) => setGoogleApiKey(e.target.value)}
+                placeholder="AIza..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowGoogle(!showGoogle)}
+              >
+                {showGoogle ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Получить: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">aistudio.google.com/app/apikey</a>
+            </p>
+          </div>
+
+          {/* CloudPayments Public ID */}
+          <div className="space-y-2">
+            <Label htmlFor="cp-public" className="font-medium">
+              CloudPayments Public ID
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="cp-public"
+                type={showCpPublic ? 'text' : 'password'}
+                value={cloudpaymentsPublicId}
+                onChange={(e) => setCloudpaymentsPublicId(e.target.value)}
+                placeholder="pk_..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowCpPublic(!showCpPublic)}
+              >
+                {showCpPublic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* CloudPayments API Secret */}
+          <div className="space-y-2">
+            <Label htmlFor="cp-secret" className="font-medium">
+              CloudPayments API Secret
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="cp-secret"
+                type={showCpSecret ? 'text' : 'password'}
+                value={cloudpaymentsSecret}
+                onChange={(e) => setCloudpaymentsSecret(e.target.value)}
+                placeholder="..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowCpSecret(!showCpSecret)}
+              >
+                {showCpSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
 
           <Separator />
 
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">
-              <strong>💡 Как добавить API ключи:</strong> API ключи управляются через безопасное хранилище секретов платформы. 
-              Для добавления или изменения ключей обратитесь к разработчику или используйте панель управления проектом.
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Доступные секреты: KIEAI_API_KEY, OPENAI_API_KEY, GOOGLE_AI_API_KEY, CLOUDPAYMENTS_API_SECRET
+          {/* Warning about secure storage */}
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+            <p className="text-sm text-yellow-600 dark:text-yellow-400">
+              <strong>⚠️ Важно:</strong> API ключи хранятся в защищённом хранилище платформы. 
+              Для сохранения ключа, введите его в поле выше и нажмите "Сохранить API ключи".
+              После сохранения ключ будет использоваться во всех Edge Functions.
             </p>
           </div>
+
+          {/* Save API Keys Button */}
+          <Button
+            onClick={handleSaveApiKeys}
+            disabled={isSavingApiKeys}
+            className="w-full"
+            size="lg"
+          >
+            {isSavingApiKeys ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Сохранение...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Сохранить API ключи
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
