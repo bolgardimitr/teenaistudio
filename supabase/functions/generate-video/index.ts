@@ -207,19 +207,24 @@ serve(async (req) => {
       const maxAttempts = 180; // 180 attempts * 2 seconds = 6 minutes max (video takes longer)
 
       // Determine the correct status endpoint based on the model
-      let statusEndpoint = `https://api.kie.ai/api/v1/runway/${taskId}`;
+      // KIE.AI uses /record-detail?taskId={taskId} endpoint for status polling
+      let statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
+      
+      // Some models may have specific endpoints
       if (model === "luma-dream") {
-        statusEndpoint = `https://api.kie.ai/api/v1/luma/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/luma/record-detail?taskId=${taskId}`;
       } else if (model.startsWith("veo3")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/veo3/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/veo3/record-detail?taskId=${taskId}`;
       } else if (model.startsWith("kling")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/kling/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/kling/record-detail?taskId=${taskId}`;
+      } else if (model.startsWith("runway") || model === "runway-gen3" || model === "runway-aleph") {
+        statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
       } else if (model.startsWith("seedance")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/seedance/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/seedance/record-detail?taskId=${taskId}`;
       } else if (model.startsWith("sora")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/sora/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/sora/record-detail?taskId=${taskId}`;
       } else if (model.startsWith("wan-animate")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/wan/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/wan/record-detail?taskId=${taskId}`;
       }
 
       while (!result && attempts < maxAttempts) {
@@ -239,40 +244,50 @@ serve(async (req) => {
             console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
           }
 
-          // Handle video response format
+          // Handle video response format from KIE.AI
           if (statusData.code === 200 && statusData.data) {
             const taskData = statusData.data;
-            // Check if task is complete
-            if (taskData.successFlag === 1 || taskData.status === "success" || taskData.status === "SUCCESS") {
-              // Extract result URL from response
-              result = taskData.response?.videoUrl || 
-                       taskData.response?.resultVideoUrl ||
+            
+            // Check state field for Runway/video models
+            if (taskData.state === "success" || taskData.successFlag === 1) {
+              // Extract video URL from various possible locations
+              result = taskData.videoInfo?.videoUrl ||
+                       taskData.response?.videoUrl || 
+                       taskData.response?.resultUrls?.[0] ||
                        taskData.resultVideoUrl ||
                        taskData.videoUrl ||
                        taskData.videos?.[0]?.url;
-              if (result) break;
-            } else if (taskData.successFlag === 0 && taskData.errorMessage) {
+              if (result) {
+                console.log(`Video generation successful, URL: ${result.substring(0, 100)}`);
+                break;
+              }
+            } else if (taskData.state === "failed" || (taskData.successFlag === 0 && taskData.errorMessage)) {
+              console.error(`Video generation failed: ${taskData.failMsg || taskData.errorMessage}`);
               return new Response(
                 JSON.stringify({
                   success: false,
-                  error: taskData.errorMessage || "Генерация видео не удалась",
+                  error: taskData.failMsg || taskData.errorMessage || "Генерация видео не удалась",
                 }),
                 { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
               );
             }
+            // state === "pending" or "processing" - continue polling
           }
 
           // Legacy format handling
-          const status = statusData.data?.status || statusData.status;
+          const status = statusData.data?.status || statusData.data?.state || statusData.status;
 
-          if (status === "completed" || status === "success" || status === "SUCCESS") {
-            result = statusData.data?.output || statusData.data?.result || statusData.output || statusData.result;
-            break;
-          } else if (status === "failed" || status === "error" || status === "FAILED") {
+          if (status === "completed" || status === "success") {
+            result = statusData.data?.videoInfo?.videoUrl || 
+                     statusData.data?.output || 
+                     statusData.data?.result || 
+                     statusData.output;
+            if (result) break;
+          } else if (status === "failed" || status === "error") {
             return new Response(
               JSON.stringify({
                 success: false,
-                error: statusData.data?.error || statusData.error || statusData.msg || "Генерация видео не удалась",
+                error: statusData.data?.failMsg || statusData.data?.error || statusData.msg || "Генерация видео не удалась",
               }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
