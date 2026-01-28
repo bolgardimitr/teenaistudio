@@ -35,26 +35,29 @@ serve(async (req) => {
 
     console.log(`Generate image request - Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
 
-    // Map model IDs to KIE.AI endpoints
-    let endpoint = "";
-    let body: Record<string, unknown> = {};
-
     // Build full prompt with style
     const fullPrompt = style && style !== 'photorealism' 
       ? `${prompt}, ${style} style` 
       : prompt;
 
+    // Map model IDs to correct KIE.AI endpoints based on documentation
+    let endpoint = "";
+    let body: Record<string, unknown> = {};
+
     switch (model) {
       case "nano-banana":
-        endpoint = "https://api.kie.ai/api/v1/image/nano-banana";
+        // Nano Banana - fast generation
+        endpoint = "https://api.kie.ai/api/v1/flux/kontext/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
+          model: "flux-kontext-pro",
         };
         break;
 
       case "4o-image":
-        endpoint = "https://api.kie.ai/api/v1/image/4o";
+        // GPT-4o Image generation
+        endpoint = "https://api.kie.ai/api/v1/4o/generate";
         const sizeMap: Record<string, string> = {
           "16:9": "1792x1024",
           "9:16": "1024x1792",
@@ -69,57 +72,81 @@ serve(async (req) => {
         break;
 
       case "midjourney-v7":
-        endpoint = "https://api.kie.ai/api/v1/image/midjourney";
+        // Midjourney v7
+        endpoint = "https://api.kie.ai/api/v1/midjourney/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
           model: "v7",
         };
         break;
 
       case "flux-kontext":
-        endpoint = "https://api.kie.ai/api/v1/image/flux-kontext";
+        // Flux Kontext - documented endpoint
+        endpoint = "https://api.kie.ai/api/v1/flux/kontext/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
+          model: "flux-kontext-pro",
+          outputFormat: "jpeg",
         };
+        if (referenceImage) {
+          body.inputImage = referenceImage;
+        }
+        break;
+
+      case "flux-kontext-max":
+        // Flux Kontext Max - enhanced model
+        endpoint = "https://api.kie.ai/api/v1/flux/kontext/generate";
+        body = {
+          prompt: fullPrompt,
+          aspectRatio: aspectRatio || "1:1",
+          model: "flux-kontext-max",
+          outputFormat: "jpeg",
+        };
+        if (referenceImage) {
+          body.inputImage = referenceImage;
+        }
         break;
 
       case "seedream":
-        endpoint = "https://api.kie.ai/api/v1/image/seedream";
+        // SeedReam
+        endpoint = "https://api.kie.ai/api/v1/seedream/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
         };
         break;
 
       case "kandinsky":
-        // Kandinsky uses a different endpoint structure
-        endpoint = "https://api.kie.ai/api/v1/image/kandinsky";
+        // Kandinsky - Russian AI model
+        endpoint = "https://api.kie.ai/api/v1/kandinsky/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
         };
         break;
 
       default:
-        // Default to nano-banana as fallback
-        endpoint = "https://api.kie.ai/api/v1/image/nano-banana";
+        // Default to Flux Kontext as most reliable
+        endpoint = "https://api.kie.ai/api/v1/flux/kontext/generate";
         body = {
           prompt: fullPrompt,
-          aspect_ratio: aspectRatio || "1:1",
+          aspectRatio: aspectRatio || "1:1",
+          model: "flux-kontext-pro",
         };
     }
 
     // Handle image-to-image or editing modes
     if ((mode === "image-to-image" || mode === "editing") && referenceImage) {
-      body.image = referenceImage;
+      body.inputImage = referenceImage;
       if (changeStrength !== undefined) {
         body.strength = changeStrength;
       }
     }
 
     console.log(`Calling KIE.AI endpoint: ${endpoint}`);
+    console.log(`Request body:`, JSON.stringify(body));
 
     // Make the API request
     const response = await fetch(endpoint, {
@@ -138,45 +165,96 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: data.message || data.error || `Ошибка API: ${response.status}` 
+          error: data.msg || data.message || data.error || `Ошибка API: ${response.status}` 
         }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Handle async task-based responses
-    if (data.task_id) {
-      console.log(`Got task_id: ${data.task_id}, starting polling...`);
+    // Check for API-level errors in response
+    if (data.code && data.code !== 200) {
+      console.error("KIE.AI API returned error code:", data.code, data.msg);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: data.msg || `Ошибка API: ${data.code}` 
+        }),
+        { status: data.code, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Handle async task-based responses (taskId in data.data)
+    const taskId = data.data?.taskId || data.taskId || data.task_id;
+    
+    if (taskId) {
+      console.log(`Got taskId: ${taskId}, starting polling...`);
       
       let result = null;
       let attempts = 0;
       const maxAttempts = 90; // 90 attempts * 2 seconds = 3 minutes max
+
+      // Determine the correct status endpoint based on the model/endpoint used
+      let statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/${taskId}`;
+      if (model === "midjourney-v7") {
+        statusEndpoint = `https://api.kie.ai/api/v1/midjourney/${taskId}`;
+      } else if (model === "4o-image") {
+        statusEndpoint = `https://api.kie.ai/api/v1/4o/${taskId}`;
+      } else if (model === "seedream") {
+        statusEndpoint = `https://api.kie.ai/api/v1/seedream/${taskId}`;
+      } else if (model === "kandinsky") {
+        statusEndpoint = `https://api.kie.ai/api/v1/kandinsky/${taskId}`;
+      }
 
       while (!result && attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         attempts++;
 
         try {
-          const statusResponse = await fetch(
-            `https://api.kie.ai/api/v1/task/${data.task_id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${KIEAI_API_KEY}`,
-              },
-            }
-          );
+          // Use the correct task status endpoint for the model
+          const statusResponse = await fetch(statusEndpoint, {
+            headers: {
+              Authorization: `Bearer ${KIEAI_API_KEY}`,
+            },
+          });
 
           const statusData = await statusResponse.json();
-          console.log(`Poll attempt ${attempts}: status = ${statusData.status}`);
+          
+          if (attempts % 5 === 0) {
+            console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
+          }
 
-          if (statusData.status === "completed" || statusData.status === "success") {
-            result = statusData.output || statusData.result;
+          // Handle Flux Kontext response format
+          if (statusData.code === 200 && statusData.data) {
+            const taskData = statusData.data;
+            // Check if task is complete (successFlag = 1 or status = success)
+            if (taskData.successFlag === 1 || taskData.status === "success" || taskData.status === "SUCCESS") {
+              // Extract result URL from response
+              result = taskData.response?.resultImageUrl || 
+                       taskData.response?.originImageUrl ||
+                       taskData.resultImageUrl ||
+                       taskData.imageUrl;
+              if (result) break;
+            } else if (taskData.successFlag === 0 && taskData.errorMessage) {
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: taskData.errorMessage || "Генерация не удалась",
+                }),
+                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+          
+          // Legacy format handling
+          const status = statusData.data?.status || statusData.status;
+          if (status === "completed" || status === "success" || status === "SUCCESS") {
+            result = statusData.data?.output || statusData.data?.result || statusData.output || statusData.result;
             break;
-          } else if (statusData.status === "failed" || statusData.status === "error") {
+          } else if (status === "failed" || status === "error" || status === "FAILED") {
             return new Response(
               JSON.stringify({
                 success: false,
-                error: statusData.error || statusData.message || "Генерация не удалась",
+                error: statusData.data?.error || statusData.error || statusData.msg || "Генерация не удалась",
               }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
@@ -197,7 +275,7 @@ serve(async (req) => {
       // Extract image URL from result
       const imageUrl = typeof result === "string" 
         ? result 
-        : result.image_url || result.url || result.images?.[0]?.url || result.images?.[0];
+        : result.imageUrl || result.image_url || result.url || result.images?.[0]?.url || result.images?.[0];
 
       console.log(`Generation completed, image URL: ${imageUrl?.substring(0, 50)}...`);
 
@@ -207,15 +285,24 @@ serve(async (req) => {
       );
     }
 
-    // Handle direct response (no task_id)
-    const imageUrl = data.image_url || data.url || data.images?.[0]?.url || data.images?.[0] || data.output;
+    // Handle direct response (no taskId) - check for immediate result
+    const imageUrl = data.data?.imageUrl || data.data?.url || data.imageUrl || data.image_url || data.url || data.images?.[0]?.url || data.images?.[0] || data.output;
     
-    console.log(`Direct response, image URL: ${imageUrl?.substring(0, 50)}...`);
+    if (imageUrl) {
+      console.log(`Direct response, image URL: ${imageUrl?.substring(0, 50)}...`);
+      return new Response(
+        JSON.stringify({ success: true, image_url: imageUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
+    // No image URL and no taskId - unexpected response
+    console.error("Unexpected API response:", data);
     return new Response(
-      JSON.stringify({ success: true, image_url: imageUrl }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: "Неожиданный ответ от API" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (error) {
     console.error("generate-image error:", error);
     return new Response(
