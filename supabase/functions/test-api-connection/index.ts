@@ -24,8 +24,8 @@ serve(async (req) => {
         }
 
         try {
-          // Test KIE.AI connection by checking account info
-          const response = await fetch('https://api.kie.ai/api/v1/account', {
+          // Test KIE.AI connection by checking account credits
+          const response = await fetch('https://api.kie.ai/api/v1/chat/credit', {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${apiKey}`,
@@ -33,18 +33,20 @@ serve(async (req) => {
             }
           });
 
-          if (response.ok) {
-            const data = await response.json();
+          const data = await response.json();
+          console.log('KIE.AI credit response:', JSON.stringify(data));
+          
+          if (response.ok && data.code === 200) {
+            const credits = data.data;
             result = { 
               success: true, 
               message: 'Подключение успешно', 
-              balance: data.balance ? `$${data.balance}` : 'Доступно'
+              balance: credits !== undefined ? `${credits} кредитов` : 'Доступно'
             };
           } else {
-            const errorData = await response.text();
             result = { 
               success: false, 
-              message: `Ошибка API: ${response.status}`, 
+              message: data.msg || `Ошибка API: ${response.status}`, 
               balance: '' 
             };
           }
