@@ -34,111 +34,132 @@ serve(async (req) => {
 
     console.log(`Generate video request - Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
 
-    // Map model IDs to KIE.AI endpoints
+    // Map model IDs to correct KIE.AI endpoints based on documentation
     let endpoint = "";
     let body: Record<string, unknown> = {
       prompt,
-      aspect_ratio: aspectRatio || "16:9",
+      aspectRatio: aspectRatio || "16:9",
     };
 
-    if (duration) {
-      body.duration = parseInt(duration);
-    }
+    // Set duration
+    const videoDuration = duration ? parseInt(duration) : 5;
+    body.duration = videoDuration;
 
-    if (referenceImage) {
-      body.image = referenceImage;
+    // Set quality based on duration (1080p not available for 10s videos)
+    body.quality = videoDuration === 10 ? "720p" : "1080p";
+
+    // Handle watermark
+    if (!removeWatermark) {
+      body.waterMark = "";
     }
 
     switch (model) {
       case "luma-dream":
-        endpoint = "https://api.kie.ai/api/v1/video/luma";
+        // Luma Dream Machine
+        endpoint = "https://api.kie.ai/api/v1/luma/generate";
         break;
 
-      case "seedance-lite":
-        endpoint = "https://api.kie.ai/api/v1/video/seedance";
-        body.model = "v1-lite";
-        break;
-
-      case "sora-2":
-        endpoint = "https://api.kie.ai/api/v1/video/sora";
-        body.model = "sora-2";
-        break;
-
-      case "sora-2-pro":
-        endpoint = "https://api.kie.ai/api/v1/video/sora";
-        body.model = "sora-2-pro";
-        break;
-
-      case "sora-2-pro-story":
-        endpoint = "https://api.kie.ai/api/v1/video/sora";
-        body.model = "sora-2-pro-story";
-        break;
-
-      case "sora-watermark-remover":
-        endpoint = "https://api.kie.ai/api/v1/video/sora-watermark";
+      case "runway-gen3":
+      case "runway-aleph":
+        // Runway - documented endpoint
+        endpoint = "https://api.kie.ai/api/v1/runway/generate";
+        body.model = model === "runway-aleph" ? "runway-aleph" : "runway-duration-5-generate";
+        if (referenceImage) {
+          body.imageUrl = referenceImage;
+        }
         break;
 
       case "veo3-fast":
-        endpoint = "https://api.kie.ai/api/v1/video/veo3";
+        // Veo3 Fast
+        endpoint = "https://api.kie.ai/api/v1/veo3/generate";
         body.quality = "fast";
         break;
 
       case "veo3-quality":
-        endpoint = "https://api.kie.ai/api/v1/video/veo3";
+        // Veo3 Quality
+        endpoint = "https://api.kie.ai/api/v1/veo3/generate";
         body.quality = "quality";
         break;
 
       case "kling-turbo":
-        endpoint = "https://api.kie.ai/api/v1/video/kling";
-        body.model = "2.5-turbo";
+        // Kling AI Turbo
+        endpoint = "https://api.kie.ai/api/v1/kling/generate";
+        body.model = "turbo";
         break;
 
       case "kling-2-6":
-        endpoint = "https://api.kie.ai/api/v1/video/kling";
+        // Kling AI 2.6
+        endpoint = "https://api.kie.ai/api/v1/kling/generate";
         body.model = "2.6";
         break;
 
       case "kling-motion-control":
-        endpoint = "https://api.kie.ai/api/v1/video/kling";
-        body.model = "2.6-motion";
+        // Kling Motion Control
+        endpoint = "https://api.kie.ai/api/v1/kling/generate";
+        body.model = "motion-control";
+        break;
+
+      case "seedance-lite":
+        // Seedance Lite
+        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
+        body.model = "lite";
         break;
 
       case "seedance-pro":
-        endpoint = "https://api.kie.ai/api/v1/video/seedance";
-        body.model = "1.5-pro";
+        // Seedance Pro
+        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
+        body.model = "pro";
         break;
 
       case "seedance-pro-fast":
-        endpoint = "https://api.kie.ai/api/v1/video/seedance";
+        // Seedance Pro Fast
+        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
         body.model = "pro-fast";
         break;
 
+      case "sora-2":
+        // Sora 2
+        endpoint = "https://api.kie.ai/api/v1/sora/generate";
+        body.model = "sora-2";
+        break;
+
+      case "sora-2-pro":
+        // Sora 2 Pro
+        endpoint = "https://api.kie.ai/api/v1/sora/generate";
+        body.model = "sora-2-pro";
+        break;
+
+      case "sora-2-pro-story":
+        // Sora 2 Pro Story
+        endpoint = "https://api.kie.ai/api/v1/sora/generate";
+        body.model = "sora-2-pro-story";
+        break;
+
       case "wan-animate-move":
-        endpoint = "https://api.kie.ai/api/v1/video/wan";
+        // Wan Animate Move
+        endpoint = "https://api.kie.ai/api/v1/wan/generate";
         body.mode = "move";
         break;
 
       case "wan-animate-replace":
-        endpoint = "https://api.kie.ai/api/v1/video/wan";
+        // Wan Animate Replace
+        endpoint = "https://api.kie.ai/api/v1/wan/generate";
         body.mode = "replace";
         break;
 
-      case "runway-aleph":
-        endpoint = "https://api.kie.ai/api/v1/video/runway";
-        body.model = "aleph";
-        break;
-
       default:
-        // Default to Luma as fallback
-        endpoint = "https://api.kie.ai/api/v1/video/luma";
+        // Default to Runway as most documented and reliable
+        endpoint = "https://api.kie.ai/api/v1/runway/generate";
+        body.model = "runway-duration-5-generate";
     }
 
-    // Handle watermark removal option
-    if (removeWatermark) {
-      body.remove_watermark = true;
+    // Add reference image for image-to-video
+    if (referenceImage && !body.imageUrl) {
+      body.imageUrl = referenceImage;
     }
 
     console.log(`Calling KIE.AI endpoint: ${endpoint}`);
+    console.log(`Request body:`, JSON.stringify(body));
 
     // Make the API request
     const response = await fetch(endpoint, {
@@ -157,48 +178,101 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: data.message || data.error || `Ошибка API: ${response.status}` 
+          error: data.msg || data.message || data.error || `Ошибка API: ${response.status}` 
         }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Check for API-level errors in response
+    if (data.code && data.code !== 200) {
+      console.error("KIE.AI API returned error code:", data.code, data.msg);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: data.msg || `Ошибка API: ${data.code}` 
+        }),
+        { status: data.code, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Handle async task-based responses (video generation is always async)
-    if (data.task_id) {
-      console.log(`Got task_id: ${data.task_id}, starting polling...`);
+    const taskId = data.data?.taskId || data.taskId || data.task_id;
+    
+    if (taskId) {
+      console.log(`Got taskId: ${taskId}, starting polling...`);
       
       let result = null;
       let attempts = 0;
       const maxAttempts = 180; // 180 attempts * 2 seconds = 6 minutes max (video takes longer)
+
+      // Determine the correct status endpoint based on the model
+      let statusEndpoint = `https://api.kie.ai/api/v1/runway/${taskId}`;
+      if (model === "luma-dream") {
+        statusEndpoint = `https://api.kie.ai/api/v1/luma/${taskId}`;
+      } else if (model.startsWith("veo3")) {
+        statusEndpoint = `https://api.kie.ai/api/v1/veo3/${taskId}`;
+      } else if (model.startsWith("kling")) {
+        statusEndpoint = `https://api.kie.ai/api/v1/kling/${taskId}`;
+      } else if (model.startsWith("seedance")) {
+        statusEndpoint = `https://api.kie.ai/api/v1/seedance/${taskId}`;
+      } else if (model.startsWith("sora")) {
+        statusEndpoint = `https://api.kie.ai/api/v1/sora/${taskId}`;
+      } else if (model.startsWith("wan-animate")) {
+        statusEndpoint = `https://api.kie.ai/api/v1/wan/${taskId}`;
+      }
 
       while (!result && attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         attempts++;
 
         try {
-          const statusResponse = await fetch(
-            `https://api.kie.ai/api/v1/task/${data.task_id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${KIEAI_API_KEY}`,
-              },
-            }
-          );
+          const statusResponse = await fetch(statusEndpoint, {
+            headers: {
+              Authorization: `Bearer ${KIEAI_API_KEY}`,
+            },
+          });
 
           const statusData = await statusResponse.json();
           
           if (attempts % 10 === 0) {
-            console.log(`Poll attempt ${attempts}: status = ${statusData.status}`);
+            console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
           }
 
-          if (statusData.status === "completed" || statusData.status === "success") {
-            result = statusData.output || statusData.result;
+          // Handle video response format
+          if (statusData.code === 200 && statusData.data) {
+            const taskData = statusData.data;
+            // Check if task is complete
+            if (taskData.successFlag === 1 || taskData.status === "success" || taskData.status === "SUCCESS") {
+              // Extract result URL from response
+              result = taskData.response?.videoUrl || 
+                       taskData.response?.resultVideoUrl ||
+                       taskData.resultVideoUrl ||
+                       taskData.videoUrl ||
+                       taskData.videos?.[0]?.url;
+              if (result) break;
+            } else if (taskData.successFlag === 0 && taskData.errorMessage) {
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: taskData.errorMessage || "Генерация видео не удалась",
+                }),
+                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+
+          // Legacy format handling
+          const status = statusData.data?.status || statusData.status;
+
+          if (status === "completed" || status === "success" || status === "SUCCESS") {
+            result = statusData.data?.output || statusData.data?.result || statusData.output || statusData.result;
             break;
-          } else if (statusData.status === "failed" || statusData.status === "error") {
+          } else if (status === "failed" || status === "error" || status === "FAILED") {
             return new Response(
               JSON.stringify({
                 success: false,
-                error: statusData.error || statusData.message || "Генерация видео не удалась",
+                error: statusData.data?.error || statusData.error || statusData.msg || "Генерация видео не удалась",
               }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
@@ -219,7 +293,7 @@ serve(async (req) => {
       // Extract video URL from result
       const videoUrl = typeof result === "string" 
         ? result 
-        : result.video_url || result.url || result.videos?.[0]?.url || result.videos?.[0];
+        : result.videoUrl || result.video_url || result.url || result.videos?.[0]?.url || result.videos?.[0];
 
       console.log(`Video generation completed, URL: ${videoUrl?.substring(0, 50)}...`);
 
@@ -230,14 +304,23 @@ serve(async (req) => {
     }
 
     // Handle direct response (unlikely for video but just in case)
-    const videoUrl = data.video_url || data.url || data.videos?.[0]?.url || data.videos?.[0] || data.output;
+    const videoUrl = data.data?.videoUrl || data.data?.url || data.videoUrl || data.video_url || data.url || data.videos?.[0]?.url || data.videos?.[0] || data.output;
     
-    console.log(`Direct response, video URL: ${videoUrl?.substring(0, 50)}...`);
+    if (videoUrl) {
+      console.log(`Direct response, video URL: ${videoUrl?.substring(0, 50)}...`);
+      return new Response(
+        JSON.stringify({ success: true, video_url: videoUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
+    // No video URL and no taskId - unexpected response
+    console.error("Unexpected API response:", data);
     return new Response(
-      JSON.stringify({ success: true, video_url: videoUrl }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: "Неожиданный ответ от API" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (error) {
     console.error("generate-video error:", error);
     return new Response(
