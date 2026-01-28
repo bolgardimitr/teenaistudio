@@ -24,6 +24,7 @@ import AdminGenerations from "./pages/admin/AdminGenerations";
 import AdminTransactions from "./pages/admin/AdminTransactions";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminGallery from "./pages/admin/AdminGallery";
+import AdminApiModels from "./pages/admin/AdminApiModels";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
@@ -153,6 +154,7 @@ function AppRoutes() {
         <Route path="transactions" element={<AdminTransactions />} />
         <Route path="agents" element={<AdminAgents />} />
         <Route path="gallery" element={<AdminGallery />} />
+        <Route path="api-models" element={<AdminApiModels />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
       
