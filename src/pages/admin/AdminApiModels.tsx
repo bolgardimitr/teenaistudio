@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plug, 
   RefreshCw, 
@@ -90,17 +91,17 @@ const allModels: ModelStatus[] = [
   { id: 'nano-banana', name: 'Nano Banana', type: 'photo', api: 'KIE.AI', cost: '4 токена', status: 'success' },
   { id: 'kandinsky', name: 'Kandinsky 3.1', type: 'photo', api: 'KIE.AI', cost: 'FREE', status: 'success' },
   { id: '4o-image', name: '4o Image', type: 'photo', api: 'KIE.AI', cost: '10 токенов', status: 'success' },
-  { id: 'midjourney', name: 'Midjourney V7', type: 'photo', api: 'KIE.AI', cost: '15 токенов', status: 'success' },
+  { id: 'midjourney-v7', name: 'Midjourney V7', type: 'photo', api: 'KIE.AI', cost: '15 токенов', status: 'success' },
   { id: 'flux-kontext', name: 'Flux Kontext', type: 'photo', api: 'KIE.AI', cost: '8 токенов', status: 'success' },
   { id: 'seedream', name: 'Seedream 4.0', type: 'photo', api: 'KIE.AI', cost: '12 токенов', status: 'success' },
   
   // Video models
-  { id: 'luma', name: 'Luma Dream Machine', type: 'video', api: 'KIE.AI', cost: 'FREE (3/день)', status: 'success' },
+  { id: 'luma-dream', name: 'Luma Dream Machine', type: 'video', api: 'KIE.AI', cost: 'FREE (3/день)', status: 'success' },
   { id: 'kling-turbo', name: 'Kling 2.5 Turbo', type: 'video', api: 'KIE.AI', cost: '70 токенов', status: 'success' },
-  { id: 'seedance', name: 'Seedance 1.5 Pro', type: 'video', api: 'KIE.AI', cost: '120 токенов', status: 'success' },
+  { id: 'seedance-pro', name: 'Seedance 1.5 Pro', type: 'video', api: 'KIE.AI', cost: '120 токенов', status: 'success' },
   { id: 'veo3-fast', name: 'Veo 3 Fast', type: 'video', api: 'KIE.AI', cost: '80 токенов', status: 'success' },
-  { id: 'veo31', name: 'Veo 3.1 Quality', type: 'video', api: 'KIE.AI', cost: '400 токенов', status: 'success' },
-  { id: 'runway', name: 'Runway Aleph', type: 'video', api: 'KIE.AI', cost: '100 токенов', status: 'success' },
+  { id: 'veo3-quality', name: 'Veo 3 Quality', type: 'video', api: 'KIE.AI', cost: '400 токенов', status: 'success' },
+  { id: 'runway-aleph', name: 'Runway Aleph', type: 'video', api: 'KIE.AI', cost: '100 токенов', status: 'success' },
   { id: 'sora-2', name: 'Sora 2', type: 'video', api: 'KIE.AI', cost: '50 токенов', status: 'success' },
   { id: 'sora-2-pro', name: 'Sora 2 Pro', type: 'video', api: 'KIE.AI', cost: '80 токенов', status: 'success' },
   
@@ -115,6 +116,7 @@ const allModels: ModelStatus[] = [
 ];
 
 export default function AdminApiModels() {
+  const navigate = useNavigate();
   const [connections, setConnections] = useState<ApiConnection[]>(apiConnections);
   const [models, setModels] = useState<ModelStatus[]>(allModels);
   const [testingAll, setTestingAll] = useState(false);
@@ -183,10 +185,6 @@ export default function AdminApiModels() {
     const connection = connections.find(c => c.id === connectionId);
     if (!connection) return;
 
-    setConnections(prev => prev.map(c => 
-      c.id === connectionId ? { ...c, status: 'not_configured' } : c
-    ));
-
     try {
       // Test via edge function
       const { data, error } = await supabase.functions.invoke('test-api-connection', {
@@ -248,6 +246,36 @@ export default function AdminApiModels() {
           break;
       }
 
+      // Музыка пока не подключена отдельной backend-функцией — логируем предупреждение, не делая сетевой вызов.
+      if (model.type === 'music') {
+        clearInterval(progressInterval);
+        setTestProgress(100);
+
+        await supabase.from('api_tests').insert({
+          model_name: model.name,
+          model_type: model.type,
+          api_provider: model.api,
+          status: 'warning',
+          error_message: 'Тест музыки пока не реализован',
+        });
+
+        setModels(prev => prev.map(m =>
+          m.id === model.id ? {
+            ...m,
+            status: 'warning',
+            lastTest: 'только что',
+            errorMessage: 'Тест музыки пока не реализован'
+          } : m
+        ));
+
+        toast({
+          title: 'Предупреждение',
+          description: 'Тест музыки пока не реализован — пропущено',
+        });
+
+        return;
+      }
+
       const startTime = Date.now();
       
       // Call the appropriate edge function based on model type
@@ -275,30 +303,46 @@ export default function AdminApiModels() {
       clearInterval(progressInterval);
       setTestProgress(100);
 
+      const payloadFailure =
+        !error &&
+        data &&
+        typeof data === 'object' &&
+        'success' in (data as any) &&
+        (data as any).success === false;
+
+      const isSuccess = !error && !payloadFailure;
+      const failureMessage =
+        error?.message ||
+        ((data as any)?.error as string | undefined) ||
+        ((data as any)?.message as string | undefined) ||
+        (payloadFailure ? 'Ошибка теста' : undefined);
+
       // Save test result
       await supabase.from('api_tests').insert({
         model_name: model.name,
         model_type: model.type,
         api_provider: model.api,
-        status: error ? 'error' : 'success',
+        status: isSuccess ? 'success' : 'error',
         response_time_ms: responseTime,
-        error_message: error?.message || null
+        error_message: isSuccess ? null : (failureMessage ?? null)
       });
 
       // Update local state
       setModels(prev => prev.map(m => 
         m.id === model.id ? {
           ...m,
-          status: error ? 'error' : 'success',
+          status: isSuccess ? 'success' : 'error',
           lastTest: 'только что',
-          errorMessage: error?.message
+          errorMessage: isSuccess ? undefined : failureMessage
         } : m
       ));
 
       toast({
-        title: error ? 'Тест не пройден' : 'Тест успешен',
-        description: error ? error.message : `Модель ${model.name} работает корректно (${responseTime}ms)`,
-        variant: error ? 'destructive' : 'default'
+        title: isSuccess ? 'Тест успешен' : 'Тест не пройден',
+        description: isSuccess
+          ? `Модель ${model.name} работает корректно (${responseTime}ms)`
+          : (failureMessage ?? 'Ошибка теста'),
+        variant: isSuccess ? 'default' : 'destructive'
       });
 
     } catch (error: any) {
@@ -470,7 +514,18 @@ export default function AdminApiModels() {
                   variant="outline" 
                   size="sm" 
                   className="w-full"
-                  onClick={() => testApiConnection(connection.id)}
+                  onClick={() => {
+                    if (connection.status === 'not_configured') {
+                      navigate('/admin/settings');
+                      toast({
+                        title: 'Нужно настроить ключ',
+                        description: `Добавьте секрет ${connection.secretKey} в Настройках, затем вернитесь сюда и нажмите “Проверить”.`,
+                      });
+                      return;
+                    }
+
+                    void testApiConnection(connection.id);
+                  }}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   {connection.status === 'not_configured' ? 'Настроить' : 'Проверить'}

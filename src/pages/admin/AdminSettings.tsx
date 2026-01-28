@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Save, Eye, EyeOff, Key, Coins, Settings } from 'lucide-react';
+import { Save, Key, Coins, Settings, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TokenPrice {
   model: string;
@@ -40,6 +42,7 @@ const DEFAULT_PRICES: TokenPrice[] = [
 
 export default function AdminSettings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [prices, setPrices] = useState<TokenPrice[]>(DEFAULT_PRICES);
   const [freeLimits, setFreeLimits] = useState<FreeLimits>({
     photo: 5,
@@ -49,21 +52,99 @@ export default function AdminSettings() {
     dailyBonus: 5,
   });
 
-  const [apiKeys, setApiKeys] = useState({
-    kieai: '',
-    openai: '',
-    google: '',
-    cloudpayments_public: '',
-    cloudpayments_secret: '',
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  type ApiStatus = 'connected' | 'error' | 'not_configured' | 'checking';
+  const apiProviders = useMemo(
+    () => [
+      { id: 'kieai', label: 'KIE.AI', secretKey: 'KIEAI_API_KEY' },
+      { id: 'openai', label: 'OpenAI', secretKey: 'OPENAI_API_KEY' },
+      { id: 'google', label: 'Google AI', secretKey: 'GOOGLE_AI_API_KEY' },
+      { id: 'cloudpayments', label: 'CloudPayments', secretKey: 'CLOUDPAYMENTS_API_SECRET' },
+    ],
+    [],
+  );
+
+  const [apiStatus, setApiStatus] = useState<Record<string, { status: ApiStatus; balance?: string; message?: string }>>({
+    kieai: { status: 'checking' },
+    openai: { status: 'checking' },
+    google: { status: 'checking' },
+    cloudpayments: { status: 'checking' },
   });
 
-  const [showKeys, setShowKeys] = useState({
-    kieai: false,
-    openai: false,
-    google: false,
-    cloudpayments_public: false,
-    cloudpayments_secret: false,
-  });
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('token_prices, free_limits')
+          .eq('id', 'default')
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data?.token_prices && Array.isArray(data.token_prices)) {
+          setPrices(data.token_prices as unknown as TokenPrice[]);
+        }
+        if (data?.free_limits && typeof data.free_limits === 'object' && data.free_limits) {
+          setFreeLimits(data.free_limits as unknown as FreeLimits);
+        }
+      } catch (e: any) {
+        toast({
+          title: 'Не удалось загрузить настройки',
+          description: e.message,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const checkApi = async (providerId: string) => {
+    setApiStatus((prev) => ({
+      ...prev,
+      [providerId]: { status: 'checking' },
+    }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('test-api-connection', {
+        body: { provider: providerId },
+      });
+
+      if (error) throw error;
+
+      const message = data?.message as string | undefined;
+      const notConfigured = !data?.success && !!message && /не настроен/i.test(message);
+
+      setApiStatus((prev) => ({
+        ...prev,
+        [providerId]: {
+          status: data?.success ? 'connected' : notConfigured ? 'not_configured' : 'error',
+          balance: data?.balance,
+          message,
+        },
+      }));
+    } catch (e: any) {
+      setApiStatus((prev) => ({
+        ...prev,
+        [providerId]: { status: 'error', message: e.message },
+      }));
+    }
+  };
+
+  useEffect(() => {
+    // Проверяем API статусы при открытии страницы
+    apiProviders.forEach((p) => {
+      void checkApi(p.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiProviders]);
 
   const handlePriceChange = (index: number, value: string) => {
     const newPrices = [...prices];
@@ -71,12 +152,44 @@ export default function AdminSettings() {
     setPrices(newPrices);
   };
 
-  const handleSaveSettings = () => {
-    // In a real app, this would save to a settings table or environment variables
-    toast({
-      title: 'Настройки сохранены!',
-      description: 'Изменения вступят в силу немедленно',
-    });
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert(
+          {
+            id: 'default',
+            token_prices: prices as any,
+            free_limits: freeLimits as any,
+            updated_at: new Date().toISOString(),
+            updated_by: user?.id ?? null,
+          },
+          { onConflict: 'id' },
+        );
+
+      if (error) throw error;
+
+      toast({
+        title: 'Настройки сохранены!',
+        description: 'Цены и лимиты обновлены',
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Ошибка сохранения',
+        description: e.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderApiBadge = (status: ApiStatus) => {
+    if (status === 'connected') return <Badge>Подключено</Badge>;
+    if (status === 'checking') return <Badge variant="secondary">Проверка…</Badge>;
+    if (status === 'not_configured') return <Badge variant="outline">Не настроен</Badge>;
+    return <Badge variant="destructive">Ошибка</Badge>;
   };
 
   return (
@@ -196,139 +309,49 @@ export default function AdminSettings() {
             API Ключи
           </CardTitle>
           <CardDescription>
-            Ключи для внешних сервисов. Храните их в безопасности!
+            Секретные ключи хранятся в защищённом хранилище и не сохраняются в базе данных.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* KIE.AI */}
-          <div>
-            <label className="text-sm font-medium">KIE.AI API Key</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <Input
-                  type={showKeys.kieai ? 'text' : 'password'}
-                  value={apiKeys.kieai}
-                  onChange={(e) => setApiKeys({ ...apiKeys, kieai: e.target.value })}
-                  placeholder="sk-..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowKeys({ ...showKeys, kieai: !showKeys.kieai })}
-                >
-                  {showKeys.kieai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+          <div className="space-y-3">
+            {apiProviders.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">{p.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Секрет: {p.secretKey}
+                    {apiStatus[p.id]?.balance ? ` · Баланс: ${apiStatus[p.id]?.balance}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {renderApiBadge(apiStatus[p.id]?.status ?? 'checking')}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkApi(p.id)}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Проверить
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* OpenAI */}
-          <div>
-            <label className="text-sm font-medium">OpenAI API Key</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <Input
-                  type={showKeys.openai ? 'text' : 'password'}
-                  value={apiKeys.openai}
-                  onChange={(e) => setApiKeys({ ...apiKeys, openai: e.target.value })}
-                  placeholder="sk-..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowKeys({ ...showKeys, openai: !showKeys.openai })}
-                >
-                  {showKeys.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Google AI */}
-          <div>
-            <label className="text-sm font-medium">Google AI API Key</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <Input
-                  type={showKeys.google ? 'text' : 'password'}
-                  value={apiKeys.google}
-                  onChange={(e) => setApiKeys({ ...apiKeys, google: e.target.value })}
-                  placeholder="AIza..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowKeys({ ...showKeys, google: !showKeys.google })}
-                >
-                  {showKeys.google ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
+            ))}
           </div>
 
           <Separator />
 
-          {/* CloudPayments Public ID */}
-          <div>
-            <label className="text-sm font-medium">CloudPayments Public ID</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <Input
-                  type={showKeys.cloudpayments_public ? 'text' : 'password'}
-                  value={apiKeys.cloudpayments_public}
-                  onChange={(e) => setApiKeys({ ...apiKeys, cloudpayments_public: e.target.value })}
-                  placeholder="pk_..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowKeys({ ...showKeys, cloudpayments_public: !showKeys.cloudpayments_public })}
-                >
-                  {showKeys.cloudpayments_public ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* CloudPayments Secret */}
-          <div>
-            <label className="text-sm font-medium">CloudPayments API Secret</label>
-            <div className="flex gap-2 mt-1">
-              <div className="relative flex-1">
-                <Input
-                  type={showKeys.cloudpayments_secret ? 'text' : 'password'}
-                  value={apiKeys.cloudpayments_secret}
-                  onChange={(e) => setApiKeys({ ...apiKeys, cloudpayments_secret: e.target.value })}
-                  placeholder="..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowKeys({ ...showKeys, cloudpayments_secret: !showKeys.cloudpayments_secret })}
-                >
-                  {showKeys.cloudpayments_secret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <p className="text-xs text-muted-foreground">
-            ⚠️ API ключи хранятся в безопасном хранилище и не передаются клиенту.
-            Для применения изменений нажмите "Сохранить настройки".
+            Чтобы добавить/обновить API ключи, используйте безопасное хранилище секретов.
+            Значения ключей не отображаются и не сохраняются в базе данных.
           </p>
         </CardContent>
       </Card>
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveSettings} size="lg">
+        <Button onClick={handleSaveSettings} size="lg" disabled={isSaving || isLoading}>
           <Save className="h-4 w-4 mr-2" />
-          Сохранить настройки
+          {isSaving ? 'Сохранение…' : 'Сохранить настройки'}
         </Button>
       </div>
     </div>
