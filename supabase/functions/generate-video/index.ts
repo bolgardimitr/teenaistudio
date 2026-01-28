@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,66 @@ interface GenerateVideoRequest {
   referenceImage?: string;
   removeWatermark?: boolean;
   isTest?: boolean;
+}
+
+// Upload base64 image to Supabase storage and return public URL
+async function uploadBase64ToStorage(base64Data: string): Promise<string | null> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Supabase credentials not configured");
+      return null;
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Extract mime type and base64 content
+    const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      console.error("Invalid base64 format");
+      return null;
+    }
+    
+    const mimeType = matches[1];
+    const base64Content = matches[2];
+    const extension = mimeType.split("/")[1] || "jpg";
+    
+    // Convert base64 to Uint8Array
+    const binaryString = atob(base64Content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Generate unique filename
+    const fileName = `${crypto.randomUUID()}.${extension}`;
+    
+    // Upload to storage
+    const { data, error } = await supabase.storage
+      .from("video-references")
+      .upload(fileName, bytes, {
+        contentType: mimeType,
+        upsert: false,
+      });
+    
+    if (error) {
+      console.error("Storage upload error:", error);
+      return null;
+    }
+    
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from("video-references")
+      .getPublicUrl(fileName);
+    
+    console.log(`Uploaded image to storage: ${publicUrlData.publicUrl}`);
+    return publicUrlData.publicUrl;
+  } catch (err) {
+    console.error("Error uploading to storage:", err);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -65,12 +126,24 @@ serve(async (req) => {
     }
 
     // Add reference image for image-to-video
+    // If it's a base64 data URL, upload to storage first
     if (referenceImage) {
-      body.imageUrl = referenceImage;
+      if (referenceImage.startsWith("data:")) {
+        console.log("Uploading base64 image to storage...");
+        const publicUrl = await uploadBase64ToStorage(referenceImage);
+        if (publicUrl) {
+          body.imageUrl = publicUrl;
+        } else {
+          console.warn("Failed to upload reference image, proceeding without it");
+        }
+      } else {
+        // Already a URL, use directly
+        body.imageUrl = referenceImage;
+      }
     }
 
     console.log(`Calling KIE.AI endpoint: ${endpoint}`);
-    console.log(`Request body:`, JSON.stringify(body));
+    console.log(`Request body (truncated):`, JSON.stringify({ ...body, imageUrl: body.imageUrl ? (body.imageUrl as string).substring(0, 100) + "..." : undefined }));
 
     // Make the API request
     const response = await fetch(endpoint, {
