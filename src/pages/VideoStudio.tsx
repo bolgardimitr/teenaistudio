@@ -17,12 +17,14 @@ interface VideoModel {
   name: string;
   badge: 'free' | 'basic' | 'premium';
   badgeLabel: string;
-  cost: number | string;
+  cost: number;
   description: string;
   requiredRole: 'free' | 'basic' | 'premium';
+  category: string;
 }
 
 const videoModels: VideoModel[] = [
+  // Бесплатные
   {
     id: 'luma-dream',
     name: 'Luma Dream Machine',
@@ -31,33 +33,69 @@ const videoModels: VideoModel[] = [
     cost: 0,
     description: 'Быстрая генерация для начинающих',
     requiredRole: 'free',
+    category: 'Бесплатные',
   },
   {
-    id: 'kling-turbo',
-    name: 'Kling 2.5 Turbo',
+    id: 'seedance-lite',
+    name: 'Seedance V1 Lite',
+    badge: 'free',
+    badgeLabel: '🆓 FREE - 5/день',
+    cost: 0,
+    description: 'Облегчённая бесплатная версия',
+    requiredRole: 'free',
+    category: 'Бесплатные',
+  },
+  // OpenAI Sora
+  {
+    id: 'sora-2',
+    name: 'Sora 2',
     badge: 'basic',
-    badgeLabel: '⭐ 70 токенов',
-    cost: 70,
-    description: 'Отличное качество, популярный выбор',
+    badgeLabel: '⭐ 50 токенов',
+    cost: 50,
+    description: 'Базовая модель OpenAI для видео',
     requiredRole: 'basic',
+    category: 'OpenAI Sora',
   },
   {
-    id: 'seedance-pro',
-    name: 'Seedance 1.5 Pro',
-    badge: 'basic',
-    badgeLabel: '⭐ 120 токенов',
-    cost: 120,
-    description: 'Кинематографичное видео со звуком',
-    requiredRole: 'basic',
-  },
-  {
-    id: 'veo3-fast',
-    name: 'Veo 3 Fast',
+    id: 'sora-2-pro',
+    name: 'Sora 2 Pro',
     badge: 'premium',
     badgeLabel: '💎 80 токенов',
     cost: 80,
-    description: 'Google DeepMind, быстрая генерация',
+    description: 'Продвинутая версия с улучшенным качеством',
     requiredRole: 'premium',
+    category: 'OpenAI Sora',
+  },
+  {
+    id: 'sora-2-pro-story',
+    name: 'Sora 2 Pro Story',
+    badge: 'premium',
+    badgeLabel: '💎 100 токенов',
+    cost: 100,
+    description: 'Создание многосценарных историй',
+    requiredRole: 'premium',
+    category: 'OpenAI Sora',
+  },
+  {
+    id: 'sora-watermark-remover',
+    name: 'Sora Watermark Remover',
+    badge: 'basic',
+    badgeLabel: '⭐ 30 токенов',
+    cost: 30,
+    description: 'Удаление водяных знаков с видео',
+    requiredRole: 'basic',
+    category: 'OpenAI Sora',
+  },
+  // Google Veo
+  {
+    id: 'veo3-fast',
+    name: 'Veo 3 Fast',
+    badge: 'basic',
+    badgeLabel: '⭐ 80 токенов',
+    cost: 80,
+    description: 'Google DeepMind, быстрая генерация',
+    requiredRole: 'basic',
+    category: 'Google Veo',
   },
   {
     id: 'veo3-quality',
@@ -67,7 +105,82 @@ const videoModels: VideoModel[] = [
     cost: 400,
     description: 'Максимальное качество от Google',
     requiredRole: 'premium',
+    category: 'Google Veo',
   },
+  // Kling
+  {
+    id: 'kling-turbo',
+    name: 'Kling 2.5 Turbo',
+    badge: 'basic',
+    badgeLabel: '⭐ 70 токенов',
+    cost: 70,
+    description: 'Отличное качество, популярный выбор',
+    requiredRole: 'basic',
+    category: 'Kling',
+  },
+  {
+    id: 'kling-2-6',
+    name: 'Kling 2.6',
+    badge: 'basic',
+    badgeLabel: '⭐ 60 токенов',
+    cost: 60,
+    description: 'Обновлённая версия Kling',
+    requiredRole: 'basic',
+    category: 'Kling',
+  },
+  {
+    id: 'kling-motion-control',
+    name: 'Kling 2.6 Motion Control',
+    badge: 'premium',
+    badgeLabel: '💎 90 токенов',
+    cost: 90,
+    description: 'Продвинутый контроль движений камеры',
+    requiredRole: 'premium',
+    category: 'Kling',
+  },
+  // Seedance
+  {
+    id: 'seedance-pro',
+    name: 'Seedance 1.5 Pro',
+    badge: 'premium',
+    badgeLabel: '💎 120 токенов',
+    cost: 120,
+    description: 'Кинематографичное видео со звуком',
+    requiredRole: 'premium',
+    category: 'Seedance',
+  },
+  {
+    id: 'seedance-pro-fast',
+    name: 'Seedance Pro Fast',
+    badge: 'basic',
+    badgeLabel: '⭐ 80 токенов',
+    cost: 80,
+    description: 'Быстрая версия Seedance',
+    requiredRole: 'basic',
+    category: 'Seedance',
+  },
+  // Wan Animate
+  {
+    id: 'wan-animate-move',
+    name: 'Wan Animate Move',
+    badge: 'basic',
+    badgeLabel: '⭐ 40 токенов',
+    cost: 40,
+    description: 'Анимация движений персонажей',
+    requiredRole: 'basic',
+    category: 'Wan Animate',
+  },
+  {
+    id: 'wan-animate-replace',
+    name: 'Wan Animate Replace',
+    badge: 'basic',
+    badgeLabel: '⭐ 45 токенов',
+    cost: 45,
+    description: 'Замена элементов в анимации',
+    requiredRole: 'basic',
+    category: 'Wan Animate',
+  },
+  // Другие
   {
     id: 'runway-aleph',
     name: 'Runway Aleph',
@@ -76,8 +189,11 @@ const videoModels: VideoModel[] = [
     cost: 100,
     description: 'Продвинутое редактирование сцен',
     requiredRole: 'premium',
+    category: 'Другие',
   },
 ];
+
+const modelCategories = ['Бесплатные', 'OpenAI Sora', 'Google Veo', 'Kling', 'Seedance', 'Wan Animate', 'Другие'];
 
 const aspectRatios = [
   { value: '9:16', label: '9:16 (Вертикальное — TikTok, Reels)' },
@@ -97,7 +213,12 @@ export default function VideoStudio() {
   const { profile, user, role, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('videoStudio_selectedModel') || '';
+    }
+    return '';
+  });
   const [prompt, setPrompt] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState('16:9');
@@ -114,6 +235,11 @@ export default function VideoStudio() {
 
   const userRoleLevel = roleHierarchy[role || 'free'];
 
+  const handleSelectModel = (modelId: string) => {
+    setSelectedModel(modelId);
+    localStorage.setItem('videoStudio_selectedModel', modelId);
+  };
+
   const canAccessModel = (model: VideoModel) => {
     return userRoleLevel >= roleHierarchy[model.requiredRole];
   };
@@ -121,8 +247,7 @@ export default function VideoStudio() {
   const getModelCost = (modelId: string) => {
     const model = videoModels.find(m => m.id === modelId);
     if (!model) return 0;
-    if (model.cost === 0) return 0;
-    return typeof model.cost === 'number' ? model.cost : 0;
+    return model.cost;
   };
 
   const getTotalCost = () => {
@@ -292,45 +417,59 @@ export default function VideoStudio() {
           {/* Model Selection */}
           <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '50ms' }}>
             <h3 className="font-semibold mb-3">Выбор модели</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {videoModels.map((model) => {
-                const isAccessible = canAccessModel(model);
-                const isSelected = selectedModel === model.id;
-
+            <div className="max-h-[400px] overflow-y-auto pr-1 space-y-4 custom-scrollbar">
+              {modelCategories.map((category) => {
+                const categoryModels = videoModels.filter(m => m.category === category);
+                if (categoryModels.length === 0) return null;
+                
                 return (
-                  <button
-                    key={model.id}
-                    onClick={() => isAccessible && setSelectedModel(model.id)}
-                    disabled={!isAccessible}
-                    className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
-                        : isAccessible
-                        ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
-                        : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    {!isAccessible && (
-                      <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                        <Lock className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between gap-1">
-                      <span className="font-medium text-sm line-clamp-1">{model.name}</span>
+                  <div key={category}>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                      {category}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {categoryModels.map((model) => {
+                        const isAccessible = canAccessModel(model);
+                        const isSelected = selectedModel === model.id;
+
+                        return (
+                          <button
+                            key={model.id}
+                            onClick={() => isAccessible && handleSelectModel(model.id)}
+                            disabled={!isAccessible}
+                            className={`relative p-2.5 rounded-xl text-left transition-all duration-200 ${
+                              isSelected
+                                ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                                : isAccessible
+                                ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                                : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                            }`}
+                          >
+                            {!isAccessible && (
+                              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex items-start justify-between gap-1">
+                              <span className="font-medium text-xs line-clamp-1">{model.name}</span>
+                            </div>
+                            <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded-full mt-1 ${
+                              model.badge === 'free' 
+                                ? 'bg-green-500/20 text-green-400'
+                                : model.badge === 'basic'
+                                ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-primary/20 text-primary'
+                            }`}>
+                              {model.badgeLabel}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                              {model.description}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 ${
-                      model.badge === 'free' 
-                        ? 'bg-green-500/20 text-green-400'
-                        : model.badge === 'basic'
-                        ? 'bg-studio-agent/20 text-studio-agent'
-                        : 'bg-primary/20 text-primary'
-                    }`}>
-                      {model.badgeLabel}
-                    </span>
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
-                      {model.description}
-                    </p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
