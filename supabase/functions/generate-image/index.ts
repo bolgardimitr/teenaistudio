@@ -193,16 +193,20 @@ serve(async (req) => {
       let attempts = 0;
       const maxAttempts = 90; // 90 attempts * 2 seconds = 3 minutes max
 
-      // Determine the correct status endpoint based on the model/endpoint used
-      let statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/${taskId}`;
+      // Determine the correct status endpoint based on the model
+      // KIE.AI uses /record-detail?taskId={taskId} endpoint for status polling
+      let statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/record-detail?taskId=${taskId}`;
+      
       if (model === "midjourney-v7") {
-        statusEndpoint = `https://api.kie.ai/api/v1/midjourney/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/midjourney/record-detail?taskId=${taskId}`;
       } else if (model === "4o-image") {
-        statusEndpoint = `https://api.kie.ai/api/v1/4o/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/4o/record-detail?taskId=${taskId}`;
       } else if (model === "seedream") {
-        statusEndpoint = `https://api.kie.ai/api/v1/seedream/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/seedream/record-detail?taskId=${taskId}`;
       } else if (model === "kandinsky") {
-        statusEndpoint = `https://api.kie.ai/api/v1/kandinsky/${taskId}`;
+        statusEndpoint = `https://api.kie.ai/api/v1/kandinsky/record-detail?taskId=${taskId}`;
+      } else if (model === "flux-kontext" || model === "flux-kontext-max" || model === "nano-banana") {
+        statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/record-detail?taskId=${taskId}`;
       }
 
       while (!result && attempts < maxAttempts) {
