@@ -232,6 +232,7 @@ export default function VideoStudio() {
     prompt: string;
     tokensSpent: number;
   } | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const userRoleLevel = roleHierarchy[role || 'free'];
 
@@ -313,6 +314,15 @@ export default function VideoStudio() {
     setIsGenerating(true);
     setGenerationProgress(0);
     setGeneratedVideo(null);
+    setGenerationError(null);
+
+    // Start progress animation
+    const progressInterval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 5;
+      });
+    }, 2000);
 
     try {
       // Create generation record
@@ -331,6 +341,46 @@ export default function VideoStudio() {
 
       if (genError) throw genError;
 
+      // Call the edge function
+      const { data, error } = await supabase.functions.invoke('generate-video', {
+        body: {
+          prompt: prompt.trim(),
+          model: selectedModel,
+          aspectRatio: aspectRatio,
+          duration: duration,
+          referenceImage: uploadedImage,
+          removeWatermark: removeWatermark,
+        },
+      });
+
+      clearInterval(progressInterval);
+
+      if (error) {
+        throw new Error(error.message || 'Ошибка вызова функции генерации');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Генерация видео не удалась');
+      }
+
+      setGenerationProgress(100);
+
+      // Get the video URL from response
+      const videoUrl = data.video_url;
+      
+      if (!videoUrl) {
+        throw new Error('Не получен URL видео');
+      }
+
+      // Update generation with result
+      await supabase
+        .from('generations')
+        .update({ 
+          status: 'completed',
+          result_url: videoUrl,
+        })
+        .eq('id', generation.id);
+
       // Deduct tokens
       await supabase
         .from('profiles')
@@ -345,33 +395,8 @@ export default function VideoStudio() {
         description: `Генерация видео: ${model.name}`,
       });
 
-      // Simulate generation progress
-      const progressInterval = setInterval(() => {
-        setGenerationProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 15;
-        });
-      }, 1000);
-
-      // Simulate AI video generation (in real app, call actual API)
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      clearInterval(progressInterval);
-      setGenerationProgress(100);
-
-      // Update generation status
-      const mockVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-      
-      await supabase
-        .from('generations')
-        .update({ 
-          status: 'completed',
-          result_url: mockVideoUrl,
-        })
-        .eq('id', generation.id);
-
       setGeneratedVideo({
-        url: mockVideoUrl,
+        url: videoUrl,
         model: model.name,
         prompt: prompt,
         tokensSpent: totalCost,
@@ -381,8 +406,11 @@ export default function VideoStudio() {
       toast.success('Видео успешно создано! 🎬');
 
     } catch (error) {
-      console.error(error);
-      toast.error('Ошибка при генерации видео');
+      clearInterval(progressInterval);
+      console.error('Video generation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при генерации видео';
+      setGenerationError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }

@@ -117,14 +117,6 @@ type GenerationMode = 'text-to-image' | 'image-to-image' | 'editing';
 
 const roleHierarchy = { free: 0, basic: 1, premium: 2, admin: 3 };
 
-// Sample generated images for demo
-const sampleImages = [
-  'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=512&h=512&fit=crop',
-  'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=512&h=512&fit=crop',
-  'https://images.unsplash.com/photo-1501286353178-1ec881214838?w=512&h=512&fit=crop',
-  'https://images.unsplash.com/photo-1498936178812-4b2e558d2937?w=512&h=512&fit=crop',
-];
-
 export default function PhotoStudio() {
   const { profile, user, role, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +134,7 @@ export default function PhotoStudio() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationInfo, setGenerationInfo] = useState<{
     model: string;
     prompt: string;
@@ -227,8 +220,18 @@ export default function PhotoStudio() {
     setIsGenerating(true);
     setGenerationProgress(0);
     setGeneratedImages([]);
+    setGenerationError(null);
+
+    // Start progress animation
+    const progressInterval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 10;
+      });
+    }, 1000);
 
     try {
+      // Create generation record first
       const { data: generation, error: genError } = await supabase
         .from('generations')
         .insert({
@@ -244,11 +247,54 @@ export default function PhotoStudio() {
 
       if (genError) throw genError;
 
+      // Call the edge function
+      const { data, error } = await supabase.functions.invoke('generate-image', {
+        body: {
+          prompt: prompt.trim(),
+          model: selectedModel,
+          aspectRatio: aspectRatio,
+          style: style,
+          referenceImage: referenceImage,
+          changeStrength: changeStrength[0],
+          mode: mode,
+        },
+      });
+
+      clearInterval(progressInterval);
+
+      if (error) {
+        throw new Error(error.message || 'Ошибка вызова функции генерации');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Генерация не удалась');
+      }
+
+      setGenerationProgress(100);
+
+      // Get the image URL from response
+      const imageUrl = data.image_url;
+      
+      if (!imageUrl) {
+        throw new Error('Не получен URL изображения');
+      }
+
+      // Update generation with result
+      await supabase
+        .from('generations')
+        .update({ 
+          status: 'completed',
+          result_url: imageUrl,
+        })
+        .eq('id', generation.id);
+
+      // Deduct tokens
       await supabase
         .from('profiles')
         .update({ tokens_balance: profile!.tokens_balance - totalCost })
         .eq('id', profile!.id);
 
+      // Record transaction
       await supabase.from('transactions').insert({
         user_id: user!.id,
         amount: -totalCost,
@@ -256,33 +302,8 @@ export default function PhotoStudio() {
         description: `Генерация фото: ${model.name}`,
       });
 
-      // Simulate generation progress
-      const progressInterval = setInterval(() => {
-        setGenerationProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 20;
-        });
-      }, 500);
-
-      // Simulate AI image generation
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      clearInterval(progressInterval);
-      setGenerationProgress(100);
-
-      // Generate mock images based on variant count
-      const numVariants = parseInt(variantCount);
-      const mockImages = sampleImages.slice(0, numVariants);
-
-      await supabase
-        .from('generations')
-        .update({ 
-          status: 'completed',
-          result_url: mockImages[0],
-        })
-        .eq('id', generation.id);
-
-      setGeneratedImages(mockImages);
+      // For now we only get 1 image, but the UI supports multiple
+      setGeneratedImages([imageUrl]);
       setGenerationInfo({
         model: model.name,
         prompt: prompt,
@@ -290,11 +311,17 @@ export default function PhotoStudio() {
       });
 
       await refreshProfile();
-      toast.success('Изображения успешно созданы! 📸');
+      toast.success('Изображение успешно создано! 📸');
 
     } catch (error) {
-      console.error(error);
-      toast.error('Ошибка при генерации изображения');
+      clearInterval(progressInterval);
+      console.error('Generation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при генерации изображения';
+      setGenerationError(errorMessage);
+      toast.error(errorMessage);
+      
+      // Update generation status to failed
+      // Note: We don't have the generation.id here if the insert failed
     } finally {
       setIsGenerating(false);
     }
