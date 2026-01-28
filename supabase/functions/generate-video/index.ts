@@ -12,6 +12,7 @@ interface GenerateVideoRequest {
   duration?: string;
   referenceImage?: string;
   removeWatermark?: boolean;
+  isTest?: boolean;
 }
 
 serve(async (req) => {
@@ -20,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, model, aspectRatio, duration, referenceImage, removeWatermark } = await req.json() as GenerateVideoRequest;
+    const { prompt, model, aspectRatio, duration, referenceImage, removeWatermark, isTest } = await req.json() as GenerateVideoRequest;
 
     const KIEAI_API_KEY = Deno.env.get("KIEAI_API_KEY");
     
@@ -34,127 +35,37 @@ serve(async (req) => {
 
     console.log(`Generate video request - Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
 
-    // Map model IDs to correct KIE.AI endpoints based on documentation
-    let endpoint = "";
-    let body: Record<string, unknown> = {
+    // KIE.AI supports Runway API for video generation
+    // All video models route through the runway endpoint
+    const endpoint = "https://api.kie.ai/api/v1/runway/generate";
+
+    // Parse duration - must be 5 or 10 seconds
+    const videoDuration = duration ? parseInt(duration) : 5;
+    const normalizedDuration = videoDuration === 10 ? 10 : 5;
+
+    // Quality depends on duration: 1080p only available for 5s videos
+    const quality = normalizedDuration === 10 ? "720p" : "1080p";
+
+    // Map aspectRatio to supported values for runway
+    const supportedRatios = ["16:9", "4:3", "1:1", "3:4", "9:16"];
+    const normalizedRatio = aspectRatio && supportedRatios.includes(aspectRatio) 
+      ? aspectRatio 
+      : "16:9";
+
+    const body: Record<string, unknown> = {
       prompt,
-      aspectRatio: aspectRatio || "16:9",
+      duration: normalizedDuration,
+      quality,
+      aspectRatio: normalizedRatio,
     };
 
-    // Set duration
-    const videoDuration = duration ? parseInt(duration) : 5;
-    body.duration = videoDuration;
-
-    // Set quality based on duration (1080p not available for 10s videos)
-    body.quality = videoDuration === 10 ? "720p" : "1080p";
-
     // Handle watermark
-    if (!removeWatermark) {
+    if (removeWatermark) {
       body.waterMark = "";
     }
 
-    switch (model) {
-      case "luma-dream":
-        // Luma Dream Machine
-        endpoint = "https://api.kie.ai/api/v1/luma/generate";
-        break;
-
-      case "runway-gen3":
-      case "runway-aleph":
-        // Runway - documented endpoint
-        endpoint = "https://api.kie.ai/api/v1/runway/generate";
-        body.model = model === "runway-aleph" ? "runway-aleph" : "runway-duration-5-generate";
-        if (referenceImage) {
-          body.imageUrl = referenceImage;
-        }
-        break;
-
-      case "veo3-fast":
-        // Veo3 Fast
-        endpoint = "https://api.kie.ai/api/v1/veo3/generate";
-        body.quality = "fast";
-        break;
-
-      case "veo3-quality":
-        // Veo3 Quality
-        endpoint = "https://api.kie.ai/api/v1/veo3/generate";
-        body.quality = "quality";
-        break;
-
-      case "kling-turbo":
-        // Kling AI Turbo
-        endpoint = "https://api.kie.ai/api/v1/kling/generate";
-        body.model = "turbo";
-        break;
-
-      case "kling-2-6":
-        // Kling AI 2.6
-        endpoint = "https://api.kie.ai/api/v1/kling/generate";
-        body.model = "2.6";
-        break;
-
-      case "kling-motion-control":
-        // Kling Motion Control
-        endpoint = "https://api.kie.ai/api/v1/kling/generate";
-        body.model = "motion-control";
-        break;
-
-      case "seedance-lite":
-        // Seedance Lite
-        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
-        body.model = "lite";
-        break;
-
-      case "seedance-pro":
-        // Seedance Pro
-        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
-        body.model = "pro";
-        break;
-
-      case "seedance-pro-fast":
-        // Seedance Pro Fast
-        endpoint = "https://api.kie.ai/api/v1/seedance/generate";
-        body.model = "pro-fast";
-        break;
-
-      case "sora-2":
-        // Sora 2
-        endpoint = "https://api.kie.ai/api/v1/sora/generate";
-        body.model = "sora-2";
-        break;
-
-      case "sora-2-pro":
-        // Sora 2 Pro
-        endpoint = "https://api.kie.ai/api/v1/sora/generate";
-        body.model = "sora-2-pro";
-        break;
-
-      case "sora-2-pro-story":
-        // Sora 2 Pro Story
-        endpoint = "https://api.kie.ai/api/v1/sora/generate";
-        body.model = "sora-2-pro-story";
-        break;
-
-      case "wan-animate-move":
-        // Wan Animate Move
-        endpoint = "https://api.kie.ai/api/v1/wan/generate";
-        body.mode = "move";
-        break;
-
-      case "wan-animate-replace":
-        // Wan Animate Replace
-        endpoint = "https://api.kie.ai/api/v1/wan/generate";
-        body.mode = "replace";
-        break;
-
-      default:
-        // Default to Runway as most documented and reliable
-        endpoint = "https://api.kie.ai/api/v1/runway/generate";
-        body.model = "runway-duration-5-generate";
-    }
-
     // Add reference image for image-to-video
-    if (referenceImage && !body.imageUrl) {
+    if (referenceImage) {
       body.imageUrl = referenceImage;
     }
 
@@ -204,28 +115,10 @@ serve(async (req) => {
       
       let result = null;
       let attempts = 0;
-      const maxAttempts = 180; // 180 attempts * 2 seconds = 6 minutes max (video takes longer)
+      const maxAttempts = isTest ? 60 : 180; // 2 min for tests, 6 min for regular
 
-      // Determine the correct status endpoint based on the model
-      // KIE.AI uses /record-detail?taskId={taskId} endpoint for status polling
-      let statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
-      
-      // Some models may have specific endpoints
-      if (model === "luma-dream") {
-        statusEndpoint = `https://api.kie.ai/api/v1/luma/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("veo3")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/veo3/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("kling")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/kling/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("runway") || model === "runway-gen3" || model === "runway-aleph") {
-        statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("seedance")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/seedance/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("sora")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/sora/record-detail?taskId=${taskId}`;
-      } else if (model.startsWith("wan-animate")) {
-        statusEndpoint = `https://api.kie.ai/api/v1/wan/record-detail?taskId=${taskId}`;
-      }
+      // Use the correct status endpoint - runway/record-detail
+      const statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
 
       while (!result && attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -244,55 +137,35 @@ serve(async (req) => {
             console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
           }
 
-          // Handle video response format from KIE.AI
+          // Handle Runway response format according to documentation
           if (statusData.code === 200 && statusData.data) {
             const taskData = statusData.data;
             
-            // Check state field for Runway/video models
-            if (taskData.state === "success" || taskData.successFlag === 1) {
-              // Extract video URL from various possible locations
-              result = taskData.videoInfo?.videoUrl ||
-                       taskData.response?.videoUrl || 
-                       taskData.response?.resultUrls?.[0] ||
-                       taskData.resultVideoUrl ||
-                       taskData.videoUrl ||
-                       taskData.videos?.[0]?.url;
+            // Check state field for video completion
+            // States: wait, queueing, generating, success, fail
+            if (taskData.state === "success") {
+              // Extract video URL from videoInfo
+              result = taskData.videoInfo?.videoUrl;
               if (result) {
                 console.log(`Video generation successful, URL: ${result.substring(0, 100)}`);
                 break;
               }
-            } else if (taskData.state === "failed" || (taskData.successFlag === 0 && taskData.errorMessage)) {
-              console.error(`Video generation failed: ${taskData.failMsg || taskData.errorMessage}`);
+            } else if (taskData.state === "fail") {
+              console.error(`Video generation failed: ${taskData.failMsg}`);
               return new Response(
                 JSON.stringify({
                   success: false,
-                  error: taskData.failMsg || taskData.errorMessage || "Генерация видео не удалась",
+                  error: taskData.failMsg || "Генерация видео не удалась",
                 }),
                 { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
               );
             }
-            // state === "pending" or "processing" - continue polling
+            // Continue polling for wait/queueing/generating states
+          } else if (statusData.code === 404) {
+            // Task not found yet - continue polling
+            continue;
           }
 
-          // Legacy format handling
-          const status = statusData.data?.status || statusData.data?.state || statusData.status;
-
-          if (status === "completed" || status === "success") {
-            result = statusData.data?.videoInfo?.videoUrl || 
-                     statusData.data?.output || 
-                     statusData.data?.result || 
-                     statusData.output;
-            if (result) break;
-          } else if (status === "failed" || status === "error") {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: statusData.data?.failMsg || statusData.data?.error || statusData.msg || "Генерация видео не удалась",
-              }),
-              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          // Continue polling for pending/processing status
         } catch (pollError) {
           console.error(`Poll error at attempt ${attempts}:`, pollError);
         }
@@ -305,21 +178,16 @@ serve(async (req) => {
         );
       }
 
-      // Extract video URL from result
-      const videoUrl = typeof result === "string" 
-        ? result 
-        : result.videoUrl || result.video_url || result.url || result.videos?.[0]?.url || result.videos?.[0];
-
-      console.log(`Video generation completed, URL: ${videoUrl?.substring(0, 50)}...`);
+      console.log(`Video generation completed, URL: ${result?.substring(0, 50)}...`);
 
       return new Response(
-        JSON.stringify({ success: true, video_url: videoUrl }),
+        JSON.stringify({ success: true, video_url: result }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Handle direct response (unlikely for video but just in case)
-    const videoUrl = data.data?.videoUrl || data.data?.url || data.videoUrl || data.video_url || data.url || data.videos?.[0]?.url || data.videos?.[0] || data.output;
+    const videoUrl = data.data?.videoUrl || data.data?.url || data.videoUrl || data.video_url || data.url;
     
     if (videoUrl) {
       console.log(`Direct response, video URL: ${videoUrl?.substring(0, 50)}...`);
