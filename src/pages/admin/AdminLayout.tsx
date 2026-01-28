@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Home
+  Home,
+  Plug
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ const navItems = [
   { path: '/admin/transactions', label: 'Транзакции', icon: Coins },
   { path: '/admin/agents', label: 'Агенты', icon: Bot },
   { path: '/admin/gallery', label: 'Галерея', icon: Image },
+  { path: '/admin/api-models', label: 'API и Модели', icon: Plug },
   { path: '/admin/settings', label: 'Настройки', icon: Settings },
 ];
 

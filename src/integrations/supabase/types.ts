@@ -182,6 +182,42 @@ export type Database = {
           },
         ]
       }
+      api_tests: {
+        Row: {
+          api_provider: string
+          error_message: string | null
+          id: string
+          model_name: string
+          model_type: string
+          response_time_ms: number | null
+          status: string
+          tested_at: string | null
+          tested_by: string | null
+        }
+        Insert: {
+          api_provider: string
+          error_message?: string | null
+          id?: string
+          model_name: string
+          model_type: string
+          response_time_ms?: number | null
+          status: string
+          tested_at?: string | null
+          tested_by?: string | null
+        }
+        Update: {
+          api_provider?: string
+          error_message?: string | null
+          id?: string
+          model_name?: string
+          model_type?: string
+          response_time_ms?: number | null
+          status?: string
+          tested_at?: string | null
+          tested_by?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           free_limits: Json
