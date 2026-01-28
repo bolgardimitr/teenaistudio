@@ -182,6 +182,30 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          free_limits: Json
+          id: string
+          token_prices: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          free_limits?: Json
+          id?: string
+          token_prices?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          free_limits?: Json
+          id?: string
+          token_prices?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       generations: {
         Row: {
           created_at: string
