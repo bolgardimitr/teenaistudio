@@ -730,8 +730,39 @@ export default function PhotoStudio() {
             </div>
           </div>
 
-          {/* Reference Images - Always Visible */}
+          {/* Prompt */}
           <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Промпт</h3>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Тренды
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                  <History className="h-3 w-3 mr-1" />
+                  История
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                  <Wand2 className="h-3 w-3 mr-1" />
+                  Улучшить
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Опишите изображение. Например: Девочка 9 лет с каштановыми волосами рисует на планшете, яркий солнечный свет, мультяшный стиль, детализированный фон комнаты"
+              className="min-h-[100px] bg-muted/30 border-border/50 rounded-xl resize-none"
+              disabled={isGenerating}
+            />
+            <div className="text-right text-xs text-muted-foreground mt-1">
+              {prompt.length} символов
+            </div>
+          </div>
+
+          {/* Reference Images - Always Visible */}
+          <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-medium flex items-center gap-2 text-foreground">
@@ -818,37 +849,6 @@ export default function PhotoStudio() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Prompt */}
-          <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Промпт</h3>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Тренды
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  <History className="h-3 w-3 mr-1" />
-                  История
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  <Wand2 className="h-3 w-3 mr-1" />
-                  Улучшить
-                </Button>
-              </div>
-            </div>
-            <Textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Опишите изображение. Например: Девочка 9 лет с каштановыми волосами рисует на планшете, яркий солнечный свет, мультяшный стиль, детализированный фон комнаты"
-              className="min-h-[100px] bg-muted/30 border-border/50 rounded-xl resize-none"
-              disabled={isGenerating}
-            />
-            <div className="text-right text-xs text-muted-foreground mt-1">
-              {prompt.length} символов
-            </div>
           </div>
 
           {/* Settings */}
