@@ -9,8 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   Video, Upload, X, Download, Share2, RefreshCw, 
-  Sparkles, History, Wand2, Lock, Play, Loader2 
+  Sparkles, History, Wand2, Lock, Play, Loader2, HelpCircle
 } from 'lucide-react';
+import { ModelsHelpModal } from '@/components/studio/ModelsHelpModal';
 
 interface VideoModel {
   id: string;
@@ -233,6 +234,7 @@ export default function VideoStudio() {
     tokensSpent: number;
   } | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showModelsHelp, setShowModelsHelp] = useState(false);
 
   const userRoleLevel = roleHierarchy[role || 'free'];
 
@@ -433,10 +435,21 @@ export default function VideoStudio() {
         <div className="lg:col-span-2 space-y-6">
           {/* Header */}
           <div className="animate-slide-up">
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <span>🎬</span>
-              <span className="gradient-text">Видео Студия</span>
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                <span>🎬</span>
+                <span className="gradient-text">Видео Студия</span>
+              </h1>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowModelsHelp(true)}
+                className="border-border/50 text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="w-4 h-4 mr-1" />
+                Подсказка по моделям
+              </Button>
+            </div>
             <p className="text-muted-foreground mt-1">
               Создавайте видео с озвучкой из текста и изображений
             </p>
@@ -755,6 +768,13 @@ export default function VideoStudio() {
           </div>
         </div>
       </div>
+
+      {/* Models Help Modal */}
+      <ModelsHelpModal 
+        open={showModelsHelp} 
+        onOpenChange={setShowModelsHelp} 
+        studioType="video" 
+      />
     </AppLayout>
   );
 }

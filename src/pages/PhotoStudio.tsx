@@ -12,8 +12,9 @@ import { toast } from 'sonner';
 import { 
   Camera, Upload, X, Download, Share2, RefreshCw, 
   Sparkles, History, Wand2, Lock, Loader2, Edit3,
-  Image as ImageIcon, Type, Palette, ZoomIn, Plus
+  Image as ImageIcon, Type, Palette, ZoomIn, Plus, HelpCircle
 } from 'lucide-react';
+import { ModelsHelpModal } from '@/components/studio/ModelsHelpModal';
 
 interface PhotoModel {
   id: string;
@@ -230,6 +231,7 @@ export default function PhotoStudio() {
     prompt: string;
     tokensSpent: number;
   } | null>(null);
+  const [showModelsHelp, setShowModelsHelp] = useState(false);
 
   const userRoleLevel = roleHierarchy[role || 'free'];
 
@@ -530,10 +532,21 @@ export default function PhotoStudio() {
         <div className="lg:col-span-2 space-y-5 overflow-y-auto">
           {/* Header */}
           <div className="animate-slide-up">
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <span>📸</span>
-              <span className="gradient-text">Фото Студия</span>
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                <span>📸</span>
+                <span className="gradient-text">Фото Студия</span>
+              </h1>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowModelsHelp(true)}
+                className="border-border/50 text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="w-4 h-4 mr-1" />
+                Подсказка по моделям
+              </Button>
+            </div>
             <p className="text-muted-foreground mt-1">
               Создавайте уникальные изображения с помощью AI
             </p>
@@ -1118,6 +1131,13 @@ export default function PhotoStudio() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Models Help Modal */}
+      <ModelsHelpModal 
+        open={showModelsHelp} 
+        onOpenChange={setShowModelsHelp} 
+        studioType="photo" 
+      />
     </AppLayout>
   );
 }

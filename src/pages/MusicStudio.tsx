@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { Music, Play, Pause, Download, Share2, Video, Lock, ChevronDown, ChevronUp, Sparkles, Loader2 } from 'lucide-react';
+import { Music, Play, Pause, Download, Share2, Video, Lock, ChevronDown, ChevronUp, Sparkles, Loader2, HelpCircle } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ModelsHelpModal } from '@/components/studio/ModelsHelpModal';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -67,6 +68,7 @@ export default function MusicStudio() {
   
   const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
   const [expandedLyrics, setExpandedLyrics] = useState<string | null>(null);
+  const [showModelsHelp, setShowModelsHelp] = useState(false);
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
   const getTierBadge = (tier: 'free' | 'basic' | 'premium') => {
@@ -301,7 +303,18 @@ ${description || finalGenre || 'Музыка'} звучит в моей душе
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-studio-music to-blue-400 mb-3">
               <span className="text-3xl">🎵</span>
             </div>
-            <h1 className="text-2xl font-bold gradient-text">Музыкальная Студия</h1>
+            <div className="flex items-center gap-3 flex-wrap justify-center lg:justify-start">
+              <h1 className="text-2xl font-bold gradient-text">Музыкальная Студия</h1>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowModelsHelp(true)}
+                className="border-border/50 text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="w-4 h-4 mr-1" />
+                Подсказка по моделям
+              </Button>
+            </div>
             <p className="text-muted-foreground text-sm mt-1">Создавайте оригинальную музыку с вокалом и без</p>
           </div>
 
@@ -659,6 +672,13 @@ ${description || finalGenre || 'Музыка'} звучит в моей душе
           </div>
         </div>
       </div>
+
+      {/* Models Help Modal */}
+      <ModelsHelpModal 
+        open={showModelsHelp} 
+        onOpenChange={setShowModelsHelp} 
+        studioType="music" 
+      />
     </AppLayout>
   );
 }
