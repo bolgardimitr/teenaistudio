@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { 
   Camera, Upload, X, Download, Share2, RefreshCw, 
   Sparkles, History, Wand2, Lock, Loader2, Edit3,
-  Image as ImageIcon, Type, Palette, ZoomIn
+  Image as ImageIcon, Type, Palette, ZoomIn, Plus
 } from 'lucide-react';
 
 interface PhotoModel {
@@ -27,24 +27,43 @@ interface PhotoModel {
 }
 
 const photoModels: PhotoModel[] = [
+  // FREE models
   {
     id: 'kandinsky',
     name: 'Kandinsky 3.1',
     badge: 'free',
     badgeLabel: '🆓 FREE',
     cost: 0,
-    description: 'Российская модель, без ограничений',
+    description: 'Российская модель, Сбер, без ограничений',
     requiredRole: 'free',
   },
+  // BASIC models
   {
     id: 'nano-banana',
     name: 'Nano Banana',
-    badge: 'free',
-    badgeLabel: '🆓 4 токена*',
+    badge: 'basic',
+    badgeLabel: '⭐ 4 токена',
     cost: 4,
-    description: 'Gemini 2.5, быстрая генерация',
-    requiredRole: 'free',
-    freeLimit: 10,
+    description: 'Gemini 2.5 Flash, быстрая генерация',
+    requiredRole: 'basic',
+  },
+  {
+    id: 'qwen-image',
+    name: 'Qwen Image',
+    badge: 'basic',
+    badgeLabel: '⭐ 4 токена',
+    cost: 4,
+    description: 'Alibaba, open-source модель',
+    requiredRole: 'basic',
+  },
+  {
+    id: 'playground-ai',
+    name: 'Playground AI',
+    badge: 'basic',
+    badgeLabel: '⭐ 4 токена',
+    cost: 4,
+    description: 'Быстрая генерация, хороший старт',
+    requiredRole: 'basic',
   },
   {
     id: 'seedream',
@@ -52,7 +71,7 @@ const photoModels: PhotoModel[] = [
     badge: 'basic',
     badgeLabel: '⭐ 4 токена',
     cost: 4,
-    description: 'До 4K разрешения, ByteDance',
+    description: 'ByteDance, до 4K разрешения',
     requiredRole: 'basic',
   },
   {
@@ -61,8 +80,54 @@ const photoModels: PhotoModel[] = [
     badge: 'basic',
     badgeLabel: '⭐ 8 токенов',
     cost: 8,
-    description: 'Отличная детализация',
+    description: 'Black Forest Labs, консистентность персонажей',
     requiredRole: 'basic',
+  },
+  {
+    id: 'nano-banana-pro',
+    name: 'Nano Banana Pro',
+    badge: 'basic',
+    badgeLabel: '⭐ 15 токенов',
+    cost: 15,
+    description: 'Gemini 3 Pro, 4K, точное локальное редактирование',
+    requiredRole: 'basic',
+  },
+  {
+    id: 'ideogram-v3',
+    name: 'Ideogram V3',
+    badge: 'basic',
+    badgeLabel: '⭐ 15 токенов',
+    cost: 15,
+    description: 'Отличный текст на изображениях, рефрейминг',
+    requiredRole: 'basic',
+  },
+  {
+    id: 'flux-2',
+    name: 'Flux 2',
+    badge: 'basic',
+    badgeLabel: '⭐ 15 токенов',
+    cost: 15,
+    description: 'Black Forest Labs, улучшенная версия',
+    requiredRole: 'basic',
+  },
+  // PREMIUM models
+  {
+    id: '4o-image',
+    name: '4o Image',
+    badge: 'premium',
+    badgeLabel: '💎 15 токенов',
+    cost: 15,
+    description: 'OpenAI GPT-4o, точный текст на картинках',
+    requiredRole: 'premium',
+  },
+  {
+    id: 'seedream-4-5',
+    name: 'Seedream 4.5',
+    badge: 'premium',
+    badgeLabel: '💎 15 токенов',
+    cost: 15,
+    description: 'ByteDance, 4K, до 10 референсов',
+    requiredRole: 'premium',
   },
   {
     id: 'midjourney-v7',
@@ -70,16 +135,25 @@ const photoModels: PhotoModel[] = [
     badge: 'premium',
     badgeLabel: '💎 15 токенов',
     cost: 15,
-    description: 'Художественные стили',
+    description: 'Художественные стили, высшая эстетика',
     requiredRole: 'premium',
   },
   {
-    id: '4o-image',
-    name: '4o Image',
+    id: 'recraft',
+    name: 'Recraft',
     badge: 'premium',
-    badgeLabel: '💎 10 токенов',
-    cost: 10,
-    description: 'OpenAI, точный текст на изображении',
+    badgeLabel: '💎 12 токенов',
+    cost: 12,
+    description: 'Профессиональное удаление фона, редактирование',
+    requiredRole: 'premium',
+  },
+  {
+    id: 'grok-imagine',
+    name: 'Grok Imagine',
+    badge: 'premium',
+    badgeLabel: '💎 12 токенов',
+    cost: 12,
+    description: 'xAI, уникальные стили Илона Маска',
     requiredRole: 'premium',
   },
 ];
@@ -115,16 +189,32 @@ const formats = [
 
 type GenerationMode = 'text-to-image' | 'image-to-image' | 'editing';
 
+interface UploadedImage {
+  file: File;
+  preview: string;
+  size: number;
+}
+
 const roleHierarchy = { free: 0, basic: 1, premium: 2, admin: 3 };
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILES = 10;
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
 
 export default function PhotoStudio() {
   const { profile, user, role, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const referenceInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<GenerationMode>('text-to-image');
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [prompt, setPrompt] = useState('');
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [changeStrength, setChangeStrength] = useState([0.5]);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [style, setStyle] = useState('photorealism');
@@ -158,35 +248,106 @@ export default function PhotoStudio() {
     return baseCost * variants;
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Файл слишком большой. Максимум 10 МБ');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReferenceImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    // Check file count
+    if (uploadedImages.length + files.length > MAX_FILES) {
+      toast.error(`Максимум ${MAX_FILES} изображений`);
+      return;
     }
+
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(file.name);
+      } else if (file.type.startsWith('image/')) {
+        validFiles.push(file);
+      }
+    }
+
+    // Show error for invalid files
+    if (invalidFiles.length > 0) {
+      toast.error(
+        `Файлы превышают 10 МБ: ${invalidFiles.join(', ')}`,
+        { duration: 5000 }
+      );
+    }
+
+    // Add valid files
+    if (validFiles.length > 0) {
+      const newImages: UploadedImage[] = validFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        size: file.size
+      }));
+      setUploadedImages(prev => [...prev, ...newImages]);
+      toast.success(`Загружено ${validFiles.length} изображений`);
+    }
+
+    // Reset input
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Файл слишком большой. Максимум 10 МБ');
-        return;
+    const files = Array.from(e.dataTransfer.files);
+    
+    if (uploadedImages.length + files.length > MAX_FILES) {
+      toast.error(`Максимум ${MAX_FILES} изображений`);
+      return;
+    }
+
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(file.name);
+      } else {
+        validFiles.push(file);
       }
+    }
+
+    if (invalidFiles.length > 0) {
+      toast.error(`Файлы превышают 10 МБ: ${invalidFiles.join(', ')}`, { duration: 5000 });
+    }
+
+    if (validFiles.length > 0) {
+      const newImages: UploadedImage[] = validFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        size: file.size
+      }));
+      setUploadedImages(prev => [...prev, ...newImages]);
+      toast.success(`Загружено ${validFiles.length} изображений`);
+    }
+  };
+
+  const getFirstReferenceAsBase64 = async (): Promise<string | null> => {
+    if (uploadedImages.length === 0) return null;
+    
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setReferenceImage(reader.result as string);
+        resolve(reader.result as string);
       };
-      reader.readAsDataURL(file);
-    }
+      reader.readAsDataURL(uploadedImages[0].file);
+    });
   };
 
   const handleGenerate = async () => {
@@ -200,7 +361,7 @@ export default function PhotoStudio() {
       return;
     }
 
-    if ((mode === 'image-to-image' || mode === 'editing') && !referenceImage) {
+    if ((mode === 'image-to-image' || mode === 'editing') && uploadedImages.length === 0) {
       toast.error('Загрузите референсное изображение');
       return;
     }
@@ -231,6 +392,9 @@ export default function PhotoStudio() {
     }, 1000);
 
     try {
+      // Get first reference image as base64 if available
+      const referenceImage = await getFirstReferenceAsBase64();
+
       // Create generation record first
       const { data: generation, error: genError } = await supabase
         .from('generations')
@@ -319,9 +483,6 @@ export default function PhotoStudio() {
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при генерации изображения';
       setGenerationError(errorMessage);
       toast.error(errorMessage);
-      
-      // Update generation status to failed
-      // Note: We don't have the generation.id here if the insert failed
     } finally {
       setIsGenerating(false);
     }
@@ -332,9 +493,23 @@ export default function PhotoStudio() {
   };
 
   const handleCreateVariations = (imageUrl: string) => {
-    setReferenceImage(imageUrl);
-    setMode('image-to-image');
-    toast.info('Изображение добавлено как референс');
+    // Fetch image and add as reference
+    fetch(imageUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'reference.png', { type: 'image/png' });
+        const newImage: UploadedImage = {
+          file,
+          preview: imageUrl,
+          size: blob.size
+        };
+        setUploadedImages([newImage]);
+        setMode('image-to-image');
+        toast.info('Изображение добавлено как референс');
+      })
+      .catch(() => {
+        toast.error('Не удалось добавить изображение как референс');
+      });
   };
 
   const resetGeneration = () => {
@@ -342,6 +517,11 @@ export default function PhotoStudio() {
     setGenerationProgress(0);
     setGenerationInfo(null);
   };
+
+  // Group models by tier for display
+  const freeModels = photoModels.filter(m => m.badge === 'free');
+  const basicModels = photoModels.filter(m => m.badge === 'basic');
+  const premiumModels = photoModels.filter(m => m.badge === 'premium');
 
   return (
     <AppLayout>
@@ -391,118 +571,235 @@ export default function PhotoStudio() {
             </Tabs>
           </div>
 
-          {/* Model Selection */}
+          {/* Model Selection - Cards Layout */}
           <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <h3 className="font-semibold mb-3">Выбор модели</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {photoModels.map((model) => {
-                const isAccessible = canAccessModel(model);
-                const isSelected = selectedModel === model.id;
+            
+            {/* FREE Models */}
+            {freeModels.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-green-400 uppercase tracking-wider">🆓 Бесплатные</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {freeModels.map((model) => {
+                    const isAccessible = canAccessModel(model);
+                    const isSelected = selectedModel === model.id;
 
-                return (
-                  <button
-                    key={model.id}
-                    onClick={() => isAccessible && setSelectedModel(model.id)}
-                    disabled={!isAccessible}
-                    className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
-                        : isAccessible
-                        ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
-                        : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    {!isAccessible && (
-                      <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                        <Lock className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between gap-1">
-                      <span className="font-medium text-sm line-clamp-1">{model.name}</span>
-                    </div>
-                    <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 ${
-                      model.badge === 'free' 
-                        ? 'bg-green-500/20 text-green-400'
-                        : model.badge === 'basic'
-                        ? 'bg-studio-agent/20 text-studio-agent'
-                        : 'bg-primary/20 text-primary'
-                    }`}>
-                      {model.badgeLabel}
-                    </span>
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
-                      {model.description}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => isAccessible && setSelectedModel(model.id)}
+                        disabled={!isAccessible}
+                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                            : isAccessible
+                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                        }`}
+                      >
+                        {!isAccessible && (
+                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                            <Lock className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
+                        </div>
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-green-500/20 text-green-400">
+                          {model.badgeLabel}
+                        </span>
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                          {model.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* BASIC Models */}
+            {basicModels.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">⭐ Базовые</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {basicModels.map((model) => {
+                    const isAccessible = canAccessModel(model);
+                    const isSelected = selectedModel === model.id;
+
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => isAccessible && setSelectedModel(model.id)}
+                        disabled={!isAccessible}
+                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                            : isAccessible
+                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                        }`}
+                      >
+                        {!isAccessible && (
+                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                            <Lock className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
+                        </div>
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-amber-500/20 text-amber-400">
+                          {model.badgeLabel}
+                        </span>
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                          {model.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* PREMIUM Models */}
+            {premiumModels.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-primary uppercase tracking-wider">💎 Премиум</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {premiumModels.map((model) => {
+                    const isAccessible = canAccessModel(model);
+                    const isSelected = selectedModel === model.id;
+
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => isAccessible && setSelectedModel(model.id)}
+                        disabled={!isAccessible}
+                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                            : isAccessible
+                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                        }`}
+                      >
+                        {!isAccessible && (
+                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                            <Lock className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
+                        </div>
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-primary/20 text-primary">
+                          {model.badgeLabel}
+                        </span>
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                          {model.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Reference Image (for Image-to-Image and Editing) */}
-          {(mode === 'image-to-image' || mode === 'editing') && (
-            <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '150ms' }}>
-              <h3 className="font-semibold mb-3">
-                {mode === 'image-to-image' ? 'Референсное изображение' : 'Изображение для редактирования'}
-              </h3>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              {referenceImage ? (
-                <div className="relative">
-                  <img
-                    src={referenceImage}
-                    alt="Reference"
-                    className="w-full h-40 object-cover rounded-xl"
-                  />
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-7 w-7"
-                    onClick={() => setReferenceImage(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border/50 rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                >
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Перетащите или нажмите для загрузки
-                  </p>
-                </div>
-              )}
+          {/* Reference Images - Always Visible */}
+          <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-medium flex items-center gap-2 text-foreground">
+                  <ImageIcon className="w-4 h-4" />
+                  Референсные изображения
+                  <span className="text-xs text-muted-foreground">(опционально)</span>
+                </h3>
+                <p className="text-muted-foreground text-sm">Загрузите до 10 фото (до 10 МБ каждое)</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => referenceInputRef.current?.click()}
+                className="border-border/50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Загрузить ({uploadedImages.length}/10)
+              </Button>
+            </div>
+            
+            <input
+              ref={referenceInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
 
-              {mode === 'image-to-image' && referenceImage && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Сила изменения</span>
-                    <span className="text-sm font-medium">{changeStrength[0].toFixed(1)}</span>
-                  </div>
-                  <Slider
-                    value={changeStrength}
-                    onValueChange={setChangeStrength}
-                    min={0.1}
-                    max={1}
-                    step={0.1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>Похоже</span>
-                    <span>Сильно отличается</span>
-                  </div>
+            {/* Images Grid */}
+            <div 
+              className="grid grid-cols-5 gap-2"
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              {uploadedImages.map((img, index) => (
+                <div key={index} className="relative aspect-square rounded-lg overflow-hidden group">
+                  <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                  <button 
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                  <span className="absolute bottom-1 left-1 bg-black/60 text-[10px] px-1 rounded text-white">
+                    {formatFileSize(img.size)}
+                  </span>
                 </div>
+              ))}
+              
+              {/* Add button */}
+              {uploadedImages.length < MAX_FILES && (
+                <label className="aspect-square border-2 border-dashed border-border/50 rounded-lg flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                  <Plus className="w-6 h-6 text-muted-foreground" />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={handleFileSelect} 
+                  />
+                </label>
               )}
             </div>
-          )}
+
+            {/* Change Strength Slider - Only for Image-to-Image */}
+            {(mode === 'image-to-image' || mode === 'editing') && uploadedImages.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Сила изменения</span>
+                  <span className="text-sm font-medium">{changeStrength[0].toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={changeStrength}
+                  onValueChange={setChangeStrength}
+                  min={0.1}
+                  max={1}
+                  step={0.1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>Похоже</span>
+                  <span>Сильно отличается</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Prompt */}
           <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
