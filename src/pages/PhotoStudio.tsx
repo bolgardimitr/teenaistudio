@@ -159,13 +159,7 @@ const photoModels: PhotoModel[] = [
   },
 ];
 
-const aspectRatios = [
-  { value: '1:1', label: '1:1 (Квадрат)' },
-  { value: '16:9', label: '16:9 (Горизонтальное)' },
-  { value: '9:16', label: '9:16 (Вертикальное)' },
-  { value: '4:3', label: '4:3 (Классическое)' },
-  { value: '3:4', label: '3:4 (Портретное)' },
-];
+import { AspectRatioIcon, aspectRatiosPhoto } from '@/components/studio/AspectRatioIcon';
 
 const styles = [
   { value: 'photorealism', label: 'Фотореализм', icon: '📷' },
@@ -861,12 +855,21 @@ export default function PhotoStudio() {
                 </label>
                 <Select value={aspectRatio} onValueChange={setAspectRatio}>
                   <SelectTrigger className="bg-muted/30 border-border/50 rounded-xl">
-                    <SelectValue />
+                    <SelectValue>
+                      <div className="flex items-center gap-2">
+                        <AspectRatioIcon ratio={aspectRatio} className="text-muted-foreground" />
+                        <span>{aspectRatio}</span>
+                      </div>
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {aspectRatios.map((ratio) => (
+                  <SelectContent className="bg-popover border-border max-h-[300px] z-50">
+                    {aspectRatiosPhoto.map((ratio) => (
                       <SelectItem key={ratio.value} value={ratio.value}>
-                        {ratio.label}
+                        <div className="flex items-center gap-3">
+                          <AspectRatioIcon ratio={ratio.value} className="text-muted-foreground" />
+                          <span className="font-medium">{ratio.label}</span>
+                          <span className="text-muted-foreground text-xs">— {ratio.description}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
