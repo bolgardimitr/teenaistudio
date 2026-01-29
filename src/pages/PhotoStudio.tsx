@@ -588,140 +588,146 @@ export default function PhotoStudio() {
           <div className="glass rounded-2xl p-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <h3 className="font-semibold mb-3">Выбор модели</h3>
             
-            {/* FREE Models */}
-            {freeModels.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-green-400 uppercase tracking-wider">🆓 Бесплатные</span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {freeModels.map((model) => {
-                    const isAccessible = canAccessModel(model);
-                    const isSelected = selectedModel === model.id;
+            {/* Scrollable container with fixed height */}
+            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full">
+              {/* FREE Models */}
+              {freeModels.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-green-400 text-xs font-medium">■</span>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider">Бесплатные</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {freeModels.map((model) => {
+                      const isAccessible = canAccessModel(model);
+                      const isSelected = selectedModel === model.id;
 
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => isAccessible && setSelectedModel(model.id)}
-                        disabled={!isAccessible}
-                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
-                          isSelected
-                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
-                            : isAccessible
-                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
-                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
-                        }`}
-                      >
-                        {!isAccessible && (
-                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                            <Lock className="h-5 w-5 text-muted-foreground" />
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => isAccessible && setSelectedModel(model.id)}
+                          disabled={!isAccessible}
+                          className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                              : isAccessible
+                              ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                              : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                          }`}
+                        >
+                          {!isAccessible && (
+                            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                              <Lock className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="font-medium text-sm line-clamp-1">{model.name}</span>
                           </div>
-                        )}
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
-                        </div>
-                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-green-500/20 text-green-400">
-                          {model.badgeLabel}
-                        </span>
-                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
-                          {model.description}
-                        </p>
-                      </button>
-                    );
-                  })}
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-green-500/20 text-green-400">
+                            {model.badgeLabel}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                            {model.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* BASIC Models */}
-            {basicModels.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">⭐ Базовые</span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {basicModels.map((model) => {
-                    const isAccessible = canAccessModel(model);
-                    const isSelected = selectedModel === model.id;
+              {/* BASIC Models */}
+              {basicModels.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-amber-400 text-xs font-medium">★</span>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider">Базовые</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {basicModels.map((model) => {
+                      const isAccessible = canAccessModel(model);
+                      const isSelected = selectedModel === model.id;
 
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => isAccessible && setSelectedModel(model.id)}
-                        disabled={!isAccessible}
-                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
-                          isSelected
-                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
-                            : isAccessible
-                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
-                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
-                        }`}
-                      >
-                        {!isAccessible && (
-                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                            <Lock className="h-5 w-5 text-muted-foreground" />
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => isAccessible && setSelectedModel(model.id)}
+                          disabled={!isAccessible}
+                          className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                              : isAccessible
+                              ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                              : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                          }`}
+                        >
+                          {!isAccessible && (
+                            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                              <Lock className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="font-medium text-sm line-clamp-1">{model.name}</span>
                           </div>
-                        )}
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
-                        </div>
-                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-amber-500/20 text-amber-400">
-                          {model.badgeLabel}
-                        </span>
-                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
-                          {model.description}
-                        </p>
-                      </button>
-                    );
-                  })}
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-amber-500/20 text-amber-400">
+                            {model.badgeLabel}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                            {model.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* PREMIUM Models */}
-            {premiumModels.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-primary uppercase tracking-wider">💎 Премиум</span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {premiumModels.map((model) => {
-                    const isAccessible = canAccessModel(model);
-                    const isSelected = selectedModel === model.id;
+              {/* PREMIUM Models */}
+              {premiumModels.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-primary text-xs font-medium">♦</span>
+                    <span className="text-muted-foreground text-xs uppercase tracking-wider">Премиум</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {premiumModels.map((model) => {
+                      const isAccessible = canAccessModel(model);
+                      const isSelected = selectedModel === model.id;
 
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => isAccessible && setSelectedModel(model.id)}
-                        disabled={!isAccessible}
-                        className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
-                          isSelected
-                            ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
-                            : isAccessible
-                            ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
-                            : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
-                        }`}
-                      >
-                        {!isAccessible && (
-                          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                            <Lock className="h-5 w-5 text-muted-foreground" />
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => isAccessible && setSelectedModel(model.id)}
+                          disabled={!isAccessible}
+                          className={`relative p-3 rounded-xl text-left transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary'
+                              : isAccessible
+                              ? 'bg-muted/30 border border-border/50 hover:border-primary/50'
+                              : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
+                          }`}
+                        >
+                          {!isAccessible && (
+                            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                              <Lock className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="font-medium text-sm line-clamp-1">{model.name}</span>
                           </div>
-                        )}
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="font-medium text-sm line-clamp-1">{model.name}</span>
-                        </div>
-                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-primary/20 text-primary">
-                          {model.badgeLabel}
-                        </span>
-                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
-                          {model.description}
-                        </p>
-                      </button>
-                    );
-                  })}
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-1 bg-primary/20 text-primary">
+                            {model.badgeLabel}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                            {model.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Reference Images - Always Visible */}
