@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MessageCircle, Plus, Search, Trash2, Send, Paperclip, Globe, 
-  Copy, RefreshCw, Check, Loader2, Scale, X, ChevronDown
+  Copy, RefreshCw, Check, Loader2, Scale, X, ChevronDown, HelpCircle
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ModelsHelpModal } from '@/components/studio/ModelsHelpModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,6 +78,7 @@ export default function TextStudio() {
   const [comparePrompt, setComparePrompt] = useState('');
   const [compareResults, setCompareResults] = useState<{model: string, response: string}[]>([]);
   const [isComparing, setIsComparing] = useState(false);
+  const [showModelsHelp, setShowModelsHelp] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -690,14 +692,25 @@ export default function TextStudio() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              variant="outline"
-              className="gap-2 rounded-xl"
-              onClick={() => setShowCompareModal(true)}
-            >
-              <Scale className="h-4 w-4" />
-              Сравнение
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 rounded-xl"
+                onClick={() => setShowModelsHelp(true)}
+              >
+                <HelpCircle className="h-4 w-4" />
+                Подсказка
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 rounded-xl"
+                onClick={() => setShowCompareModal(true)}
+              >
+                <Scale className="h-4 w-4" />
+                Сравнение
+              </Button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -950,6 +963,13 @@ export default function TextStudio() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Models Help Modal */}
+      <ModelsHelpModal 
+        open={showModelsHelp} 
+        onOpenChange={setShowModelsHelp} 
+        studioType="text" 
+      />
     </AppLayout>
   );
 }
