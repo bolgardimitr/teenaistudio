@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Video, Camera, Music, MessageCircle, Bot, Coins, Plus, User, LogOut, Settings, Image, Shield } from 'lucide-react';
+import { Video, Camera, Music, MessageCircle, Bot, Coins, Plus, User, LogOut, Settings, Image, Shield, Clock } from 'lucide-react';
 import { TopUpModal } from '@/components/topup/TopUpModal';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/music', label: 'Музыка', icon: Music, emoji: '🎵' },
   { path: '/text', label: 'Текст', icon: MessageCircle, emoji: '💬' },
   { path: '/agents', label: 'Агенты', icon: Bot, emoji: '🤖' },
+  { path: '/history', label: 'История', icon: Clock, emoji: '📋' },
 ];
 
 export function Header() {

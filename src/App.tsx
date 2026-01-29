@@ -14,6 +14,7 @@ import AgentsPage from "./pages/AgentsPage";
 import AgentChat from "./pages/AgentChat";
 import ProfilePage from "./pages/ProfilePage";
 import GalleryPage from "./pages/GalleryPage";
+import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -138,6 +139,14 @@ function AppRoutes() {
         }
       />
       <Route path="/gallery" element={<GalleryPage />} />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <HistoryPage />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Admin Routes */}
       <Route

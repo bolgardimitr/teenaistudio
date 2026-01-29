@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Video, Camera, Music, MessageCircle, Bot, Home } from 'lucide-react';
+import { Video, Camera, Music, MessageCircle, Bot, Home, Clock } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Главная', icon: Home },
   { path: '/video', label: 'Видео', icon: Video },
   { path: '/photo', label: 'Фото', icon: Camera },
   { path: '/music', label: 'Музыка', icon: Music },
-  { path: '/text', label: 'Текст', icon: MessageCircle },
   { path: '/agents', label: 'Агенты', icon: Bot },
+  { path: '/history', label: 'История', icon: Clock },
 ];
 
 export function MobileNav() {
