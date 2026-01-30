@@ -16,7 +16,217 @@ interface GenerateVideoRequest {
   isTest?: boolean;
 }
 
-// Upload base64 image to Supabase storage and return public URL
+// Маппинг UI моделей на реальные KIE.AI модели
+interface VideoModelConfig {
+  model: string;
+  buildInput: (prompt: string, duration: number, aspectRatio: string, imageUrl?: string) => Record<string, unknown>;
+}
+
+const VIDEO_MODEL_CONFIGS: Record<string, VideoModelConfig> = {
+  // БЕСПЛАТНЫЕ модели
+  'luma-dream-machine': {
+    model: 'luma/dream-machine-v1.5',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'seedance-v1-lite': {
+    model: 'bytedance/seedance-lite',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  // БАЗОВЫЕ модели
+  'kling-2.5-turbo': {
+    model: 'kling/v2.5-turbo',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      mode: 'std',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'kling-2.6': {
+    model: 'kling/v2.6-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      mode: 'pro',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'kling-2.6-motion-control': {
+    model: 'kling/v2.6-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      mode: 'pro',
+      enable_motion_control: true,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'wan-move': {
+    model: 'alibaba/wan-2.5',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 10),
+      aspect_ratio: aspectRatio,
+      with_audio: true,
+      mode: 'move',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'wan-replace': {
+    model: 'alibaba/wan-2.5',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 10),
+      aspect_ratio: aspectRatio,
+      with_audio: true,
+      mode: 'replace',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  // ПРЕМИУМ модели
+  'seedance-1.5-pro': {
+    model: 'bytedance/seedance-1.5-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      with_audio: true,
+      quality: 'high',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'seedance-pro-fast': {
+    model: 'bytedance/seedance-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      speed: 'fast',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'veo-3-fast': {
+    model: 'google/veo-3',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 8),
+      aspect_ratio: aspectRatio,
+      mode: 'fast',
+      with_audio: true,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'veo-3.1-quality': {
+    model: 'google/veo-3.1',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 8),
+      aspect_ratio: aspectRatio,
+      mode: 'quality',
+      with_audio: true,
+      resolution: '1080p',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'sora-2': {
+    model: 'openai/sora-2',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'sora-2-pro': {
+    model: 'openai/sora-2-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 35),
+      aspect_ratio: aspectRatio,
+      quality: 'high',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'sora-2-pro-story': {
+    model: 'openai/sora-2-pro',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration: Math.min(duration, 60),
+      aspect_ratio: aspectRatio,
+      mode: 'story',
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'runway-aleph': {
+    model: 'runway/aleph',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      prompt,
+      duration,
+      aspect_ratio: aspectRatio,
+      ...(imageUrl && { image_url: imageUrl }),
+    }),
+  },
+  
+  'watermark-remover': {
+    model: 'topaz/watermark-remover',
+    buildInput: (prompt, duration, aspectRatio, imageUrl) => ({
+      video_url: imageUrl, // В этом случае imageUrl - это URL видео
+    }),
+  },
+};
+
+// Нормализация названия модели
+function normalizeVideoModelName(model: string): string {
+  const normalized = model.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace('luma dream machine', 'luma-dream-machine')
+    .replace('seedance v1 lite', 'seedance-v1-lite')
+    .replace('kling 2.5 turbo', 'kling-2.5-turbo')
+    .replace('kling 2.6', 'kling-2.6')
+    .replace('kling 2.6 motion control', 'kling-2.6-motion-control')
+    .replace('wan move', 'wan-move')
+    .replace('wan replace', 'wan-replace')
+    .replace('seedance 1.5 pro', 'seedance-1.5-pro')
+    .replace('seedance pro fast', 'seedance-pro-fast')
+    .replace('veo 3 fast', 'veo-3-fast')
+    .replace('veo 3.1 quality', 'veo-3.1-quality')
+    .replace('sora 2 pro story', 'sora-2-pro-story')
+    .replace('sora 2 pro', 'sora-2-pro')
+    .replace('sora 2', 'sora-2')
+    .replace('runway aleph', 'runway-aleph')
+    .replace('watermark remover', 'watermark-remover');
+  
+  return normalized;
+}
+
+// Upload base64 image to Supabase storage
 async function uploadBase64ToStorage(base64Data: string): Promise<string | null> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -29,7 +239,6 @@ async function uploadBase64ToStorage(base64Data: string): Promise<string | null>
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Extract mime type and base64 content
     const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
     if (!matches) {
       console.error("Invalid base64 format");
@@ -40,18 +249,15 @@ async function uploadBase64ToStorage(base64Data: string): Promise<string | null>
     const base64Content = matches[2];
     const extension = mimeType.split("/")[1] || "jpg";
     
-    // Convert base64 to Uint8Array
     const binaryString = atob(base64Content);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
     
-    // Generate unique filename
     const fileName = `${crypto.randomUUID()}.${extension}`;
     
-    // Upload to storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("video-references")
       .upload(fileName, bytes, {
         contentType: mimeType,
@@ -63,7 +269,6 @@ async function uploadBase64ToStorage(base64Data: string): Promise<string | null>
       return null;
     }
     
-    // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from("video-references")
       .getPublicUrl(fileName);
@@ -94,68 +299,70 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generate video request - Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
+    // Нормализуем название модели
+    const normalizedModel = normalizeVideoModelName(model);
+    const modelConfig = VIDEO_MODEL_CONFIGS[normalizedModel];
 
-    // KIE.AI supports Runway API for video generation
-    // All video models route through the runway endpoint
-    const endpoint = "https://api.kie.ai/api/v1/runway/generate";
+    console.log('=== GENERATE VIDEO REQUEST ===');
+    console.log('UI Model:', model);
+    console.log('Normalized Model:', normalizedModel);
+    console.log('Prompt:', prompt.substring(0, 100) + '...');
+    console.log('Aspect Ratio:', aspectRatio);
+    console.log('Duration:', duration);
 
-    // Parse duration - must be 5 or 10 seconds
-    const videoDuration = duration ? parseInt(duration) : 5;
-    const normalizedDuration = videoDuration === 10 ? 10 : 5;
-
-    // Quality depends on duration: 1080p only available for 5s videos
-    const quality = normalizedDuration === 10 ? "720p" : "1080p";
-
-    // Map aspectRatio to supported values for runway
-    const supportedRatios = ["16:9", "4:3", "1:1", "3:4", "9:16"];
-    const normalizedRatio = aspectRatio && supportedRatios.includes(aspectRatio) 
-      ? aspectRatio 
-      : "16:9";
-
-    const body: Record<string, unknown> = {
-      prompt,
-      duration: normalizedDuration,
-      quality,
-      aspectRatio: normalizedRatio,
-    };
-
-    // Handle watermark
-    if (removeWatermark) {
-      body.waterMark = "";
+    if (!modelConfig) {
+      console.log(`Model ${normalizedModel} not found, using runway-aleph as fallback`);
     }
+    
+    const config = modelConfig || VIDEO_MODEL_CONFIGS['runway-aleph'];
+    
+    console.log('Using KIE.AI model:', config.model);
 
-    // Add reference image for image-to-video
-    // If it's a base64 data URL, upload to storage first
+    // Парсим длительность
+    const videoDuration = duration ? parseInt(duration) : 5;
+    const normalizedRatio = aspectRatio || '16:9';
+
+    // Обрабатываем референс-изображение
+    let imageUrl: string | undefined;
     if (referenceImage) {
       if (referenceImage.startsWith("data:")) {
         console.log("Uploading base64 image to storage...");
         const publicUrl = await uploadBase64ToStorage(referenceImage);
         if (publicUrl) {
-          body.imageUrl = publicUrl;
+          imageUrl = publicUrl;
         } else {
           console.warn("Failed to upload reference image, proceeding without it");
         }
       } else {
-        // Already a URL, use directly
-        body.imageUrl = referenceImage;
+        imageUrl = referenceImage;
       }
     }
 
-    console.log(`Calling KIE.AI endpoint: ${endpoint}`);
-    console.log(`Request body (truncated):`, JSON.stringify({ ...body, imageUrl: body.imageUrl ? (body.imageUrl as string).substring(0, 100) + "..." : undefined }));
+    // Подготавливаем body запроса
+    const requestBody = {
+      model: config.model,
+      input: config.buildInput(prompt, videoDuration, normalizedRatio, imageUrl),
+    };
 
-    // Make the API request
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+    // Используем единый endpoint
+    const endpoint = "https://api.kie.ai/api/v1/jobs/createTask";
+    
+    console.log('Calling endpoint:', endpoint);
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${KIEAI_API_KEY}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
+    
+    console.log('API Response:', JSON.stringify(data).substring(0, 500));
 
     if (!response.ok) {
       console.error("KIE.AI API error:", response.status, data);
@@ -168,7 +375,6 @@ serve(async (req) => {
       );
     }
 
-    // Check for API-level errors in response
     if (data.code && data.code !== 200) {
       console.error("KIE.AI API returned error code:", data.code, data.msg);
       return new Response(
@@ -180,101 +386,75 @@ serve(async (req) => {
       );
     }
 
-    // Handle async task-based responses (video generation is always async)
     const taskId = data.data?.taskId || data.taskId || data.task_id;
     
-    if (taskId) {
-      console.log(`Got taskId: ${taskId}, starting polling...`);
-      
-      let result = null;
-      let attempts = 0;
-      const maxAttempts = isTest ? 60 : 180; // 2 min for tests, 6 min for regular
-
-      // Use the correct status endpoint - runway/record-detail
-      const statusEndpoint = `https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`;
-
-      while (!result && attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        attempts++;
-
-        try {
-          const statusResponse = await fetch(statusEndpoint, {
-            headers: {
-              Authorization: `Bearer ${KIEAI_API_KEY}`,
-            },
-          });
-
-          const statusData = await statusResponse.json();
-          
-          if (attempts % 10 === 0) {
-            console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
-          }
-
-          // Handle Runway response format according to documentation
-          if (statusData.code === 200 && statusData.data) {
-            const taskData = statusData.data;
-            
-            // Check state field for video completion
-            // States: wait, queueing, generating, success, fail
-            if (taskData.state === "success") {
-              // Extract video URL from videoInfo
-              result = taskData.videoInfo?.videoUrl;
-              if (result) {
-                console.log(`Video generation successful, URL: ${result.substring(0, 100)}`);
-                break;
-              }
-            } else if (taskData.state === "fail") {
-              console.error(`Video generation failed: ${taskData.failMsg}`);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: taskData.failMsg || "Генерация видео не удалась",
-                }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
-            }
-            // Continue polling for wait/queueing/generating states
-          } else if (statusData.code === 404) {
-            // Task not found yet - continue polling
-            continue;
-          }
-
-        } catch (pollError) {
-          console.error(`Poll error at attempt ${attempts}:`, pollError);
-        }
-      }
-
-      if (!result) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Превышено время ожидания генерации видео" }),
-          { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      console.log(`Video generation completed, URL: ${result?.substring(0, 50)}...`);
-
+    if (!taskId) {
+      console.error("No taskId in response:", data);
       return new Response(
-        JSON.stringify({ success: true, video_url: result }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Не удалось создать задачу генерации" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Handle direct response (unlikely for video but just in case)
-    const videoUrl = data.data?.videoUrl || data.data?.url || data.videoUrl || data.video_url || data.url;
+    console.log(`Got taskId: ${taskId}, starting polling...`);
     
-    if (videoUrl) {
-      console.log(`Direct response, video URL: ${videoUrl?.substring(0, 50)}...`);
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = isTest ? 60 : 180; // Video takes longer
+
+    const statusEndpoint = `https://api.kie.ai/api/v1/jobs/getTask?taskId=${taskId}`;
+
+    while (!result && attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      attempts++;
+
+      try {
+        const statusResponse = await fetch(statusEndpoint, {
+          headers: {
+            Authorization: `Bearer ${KIEAI_API_KEY}`,
+          },
+        });
+
+        const statusData = await statusResponse.json();
+        
+        if (attempts % 10 === 0) {
+          console.log(`Poll attempt ${attempts}: ${JSON.stringify(statusData).substring(0, 300)}`);
+        }
+
+        if (statusData.code === 200 && statusData.data) {
+          const taskData = statusData.data;
+          const status = taskData.status || taskData.state;
+          
+          if (status === 'completed' || status === 'success' || status === 'COMPLETED' || status === 'SUCCESS') {
+            result = extractVideoUrl(taskData);
+            if (result) {
+              console.log(`Video generation completed! URL: ${result.substring(0, 100)}`);
+              break;
+            }
+          } else if (status === 'failed' || status === 'FAILED' || status === 'error') {
+            const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация видео не удалась';
+            console.error(`Video generation failed: ${errorMsg}`);
+            return new Response(
+              JSON.stringify({ success: false, error: errorMsg }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch (pollError) {
+        console.error(`Poll error at attempt ${attempts}:`, pollError);
+      }
+    }
+
+    if (!result) {
       return new Response(
-        JSON.stringify({ success: true, video_url: videoUrl }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Превышено время ожидания генерации видео" }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // No video URL and no taskId - unexpected response
-    console.error("Unexpected API response:", data);
     return new Response(
-      JSON.stringify({ success: false, error: "Неожиданный ответ от API" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, video_url: result }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
@@ -288,3 +468,28 @@ serve(async (req) => {
     );
   }
 });
+
+// Извлечение URL видео из ответа
+function extractVideoUrl(data: Record<string, unknown>): string | null {
+  const possiblePaths = [
+    (data as any).output?.video_url,
+    (data as any).output?.videoUrl,
+    (data as any).output?.url,
+    (data as any).video_url,
+    (data as any).videoUrl,
+    (data as any).url,
+    (data as any).result?.video_url,
+    (data as any).result?.url,
+    (data as any).videoInfo?.videoUrl,
+    (data as any).data?.video_url,
+    (data as any).data?.output?.video_url,
+  ];
+  
+  for (const path of possiblePaths) {
+    if (typeof path === 'string' && path.startsWith('http')) {
+      return path;
+    }
+  }
+  
+  return null;
+}

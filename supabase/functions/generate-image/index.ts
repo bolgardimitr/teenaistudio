@@ -16,13 +16,206 @@ interface GenerateImageRequest {
   isTest?: boolean;
 }
 
+// Маппинг UI моделей на реальные KIE.AI модели и их конфигурации
+interface ModelConfig {
+  model: string;
+  buildInput: (prompt: string, aspectRatio: string, referenceImage?: string) => Record<string, unknown>;
+  statusEndpoint?: string; // Если отличается от стандартного
+}
+
+const MODEL_CONFIGS: Record<string, ModelConfig> = {
+  // БЕСПЛАТНЫЕ модели
+  'kandinsky-3.1': {
+    model: 'bytedance/seedream', // Kandinsky недоступен в KIE.AI, используем Seedream 3.0 как замену
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+      guidance_scale: 2.5,
+      enable_safety_checker: true,
+    }),
+  },
+  
+  // БАЗОВЫЕ модели
+  'nano-banana': {
+    model: 'fal-ai/nano-banana',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+      ...(referenceImage && { image_url: referenceImage }),
+    }),
+  },
+  
+  'nano-banana-pro': {
+    model: 'fal-ai/nano-banana-pro',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+      ...(referenceImage && { image_url: referenceImage }),
+    }),
+  },
+  
+  'qwen': {
+    model: 'alibaba/qwen-vl-max',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+    }),
+  },
+  
+  'playground': {
+    model: 'playgroundai/playground-v2.5',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+    }),
+  },
+  
+  'seedream-4.0': {
+    model: 'bytedance/seedream-4.0',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+      guidance_scale: 3.0,
+      ...(referenceImage && { image_url: referenceImage }),
+    }),
+  },
+  
+  'seedream-4.5': {
+    model: 'bytedance/seedream-4.5',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      image_size: mapAspectRatioToSize(aspectRatio),
+      guidance_scale: 3.5,
+      quality: 'high',
+      ...(referenceImage && { image_url: referenceImage }),
+    }),
+  },
+  
+  'flux-kontext': {
+    model: 'black-forest-labs/flux-kontext',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+      output_format: 'jpeg',
+      enable_translation: true,
+      ...(referenceImage && { input_image: referenceImage }),
+    }),
+  },
+  
+  'flux-2': {
+    model: 'black-forest-labs/flux-1.1-pro-ultra',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+      output_format: 'jpeg',
+    }),
+  },
+  
+  'ideogram-v3': {
+    model: 'ideogram/ideogram-v3',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+      style_type: 'auto',
+    }),
+  },
+  
+  // ПРЕМИУМ модели
+  '4o-image': {
+    model: 'openai/gpt-image-1',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      size: mapAspectRatioToOpenAISize(aspectRatio),
+      quality: 'high',
+    }),
+  },
+  
+  'midjourney-v7': {
+    model: 'midjourney/midjourney-v7',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt: `${prompt} --ar ${aspectRatio} --v 7`,
+    }),
+  },
+  
+  'recraft': {
+    model: 'recraft/recraft-v3',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      size: mapAspectRatioToSize(aspectRatio),
+      style: 'realistic_image',
+    }),
+  },
+  
+  'grok-imagine': {
+    model: 'xai/grok-2-image',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+    }),
+  },
+};
+
+// Маппинг aspectRatio на размеры изображений
+function mapAspectRatioToSize(aspectRatio: string): string {
+  const sizeMap: Record<string, string> = {
+    '1:1': 'square_hd',
+    '16:9': 'landscape_16_9',
+    '9:16': 'portrait_16_9',
+    '4:3': 'landscape_4_3',
+    '3:4': 'portrait_4_3',
+    '3:2': 'landscape_4_3',
+    '2:3': 'portrait_4_3',
+    '5:4': 'square_hd',
+    '4:5': 'square_hd',
+    '21:9': 'landscape_16_9',
+  };
+  return sizeMap[aspectRatio] || 'square_hd';
+}
+
+function mapAspectRatioToOpenAISize(aspectRatio: string): string {
+  const sizeMap: Record<string, string> = {
+    '1:1': '1024x1024',
+    '16:9': '1792x1024',
+    '9:16': '1024x1792',
+    '4:3': '1792x1024',
+    '3:4': '1024x1792',
+    '3:2': '1792x1024',
+    '2:3': '1024x1792',
+    '5:4': '1024x1024',
+    '4:5': '1024x1024',
+    '21:9': '1792x1024',
+  };
+  return sizeMap[aspectRatio] || '1024x1024';
+}
+
+// Нормализация названия модели из UI в ключ конфига
+function normalizeModelName(model: string): string {
+  const normalized = model.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace('kandinsky 3.1', 'kandinsky-3.1')
+    .replace('nano banana pro', 'nano-banana-pro')
+    .replace('nano banana', 'nano-banana')
+    .replace('qwen image', 'qwen')
+    .replace('seedream 4.0', 'seedream-4.0')
+    .replace('seedream 4.5', 'seedream-4.5')
+    .replace('flux kontext', 'flux-kontext')
+    .replace('flux 2', 'flux-2')
+    .replace('ideogram v3', 'ideogram-v3')
+    .replace('4o image', '4o-image')
+    .replace('midjourney v7', 'midjourney-v7')
+    .replace('grok imagine', 'grok-imagine')
+    .replace('playground ai', 'playground');
+  
+  return normalized;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { prompt, model, aspectRatio, style, referenceImage, changeStrength, mode, isTest } = await req.json() as GenerateImageRequest;
+    const { prompt, model, aspectRatio, style, referenceImage, mode, isTest } = await req.json() as GenerateImageRequest;
 
     const KIEAI_API_KEY = Deno.env.get("KIEAI_API_KEY");
     
@@ -34,57 +227,55 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generate image request - Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
+    // Нормализуем название модели
+    const normalizedModel = normalizeModelName(model);
+    const modelConfig = MODEL_CONFIGS[normalizedModel];
+    
+    console.log('=== GENERATE IMAGE REQUEST ===');
+    console.log('UI Model:', model);
+    console.log('Normalized Model:', normalizedModel);
+    console.log('Prompt:', prompt.substring(0, 100) + '...');
+    console.log('Aspect Ratio:', aspectRatio);
+    
+    if (!modelConfig) {
+      console.log(`Model ${normalizedModel} not found, using flux-kontext as fallback`);
+    }
+    
+    const config = modelConfig || MODEL_CONFIGS['flux-kontext'];
+    
+    console.log('Using KIE.AI model:', config.model);
 
-    // Build full prompt with style
+    // Собираем полный prompt со стилем
     const fullPrompt = style && style !== 'photorealism' 
       ? `${prompt}, ${style} style` 
       : prompt;
 
-    // KIE.AI only supports Flux Kontext API for image generation
-    // All models route through the same endpoint with different configurations
-    const endpoint = "https://api.kie.ai/api/v1/flux/kontext/generate";
-    
-    // Map aspectRatio to supported values
-    const supportedRatios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
-    const normalizedRatio = aspectRatio && supportedRatios.includes(aspectRatio) 
-      ? aspectRatio 
-      : "1:1";
-
-    // Determine model variant based on requested model
-    // flux-kontext-max for premium models, flux-kontext-pro for standard
-    let modelVariant = "flux-kontext-pro";
-    if (model === "flux-kontext-max" || model === "midjourney-v7" || model === "4o-image") {
-      modelVariant = "flux-kontext-max";
-    }
-
-    const body: Record<string, unknown> = {
-      prompt: fullPrompt,
-      aspectRatio: normalizedRatio,
-      model: modelVariant,
-      outputFormat: "jpeg",
-      enableTranslation: true, // Enable auto-translation for non-English prompts
+    // Подготавливаем body запроса согласно документации KIE.AI
+    const normalizedRatio = aspectRatio || '1:1';
+    const requestBody = {
+      model: config.model,
+      input: config.buildInput(fullPrompt, normalizedRatio, referenceImage),
     };
 
-    // Handle image-to-image or editing modes
-    if ((mode === "image-to-image" || mode === "editing") && referenceImage) {
-      body.inputImage = referenceImage;
-    }
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-    console.log(`Calling KIE.AI endpoint: ${endpoint}`);
-    console.log(`Request body:`, JSON.stringify(body));
+    // Используем единый endpoint /api/v1/jobs/createTask
+    const endpoint = "https://api.kie.ai/api/v1/jobs/createTask";
+    
+    console.log('Calling endpoint:', endpoint);
 
-    // Make the API request
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${KIEAI_API_KEY}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
+    
+    console.log('API Response:', JSON.stringify(data).substring(0, 500));
 
     if (!response.ok) {
       console.error("KIE.AI API error:", response.status, data);
@@ -97,7 +288,7 @@ serve(async (req) => {
       );
     }
 
-    // Check for API-level errors in response
+    // Проверяем успешность ответа
     if (data.code && data.code !== 200) {
       console.error("KIE.AI API returned error code:", data.code, data.msg);
       return new Response(
@@ -109,124 +300,89 @@ serve(async (req) => {
       );
     }
 
-    // Handle async task-based responses (taskId in data.data)
+    // Получаем taskId для polling
     const taskId = data.data?.taskId || data.taskId || data.task_id;
     
-    if (taskId) {
-      console.log(`Got taskId: ${taskId}, starting polling...`);
+    if (!taskId) {
+      // Проверяем, может результат уже есть
+      const immediateResult = extractImageUrl(data);
+      if (immediateResult) {
+        console.log('Immediate result:', immediateResult.substring(0, 100));
+        return new Response(
+          JSON.stringify({ success: true, image_url: immediateResult }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       
-      let result = null;
-      let attempts = 0;
-      const maxAttempts = isTest ? 30 : 90; // 30 for tests (1 min), 90 for regular (3 min)
+      console.error("No taskId in response:", data);
+      return new Response(
+        JSON.stringify({ success: false, error: "Не удалось создать задачу генерации" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-      // Use the correct status endpoint - flux/kontext/record-info (NOT record-detail!)
-      const statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=${taskId}`;
+    console.log(`Got taskId: ${taskId}, starting polling...`);
+    
+    // Polling для получения результата
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = isTest ? 30 : 90;
+    
+    // Единый endpoint для проверки статуса
+    const statusEndpoint = `https://api.kie.ai/api/v1/jobs/getTask?taskId=${taskId}`;
 
-      while (!result && attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        attempts++;
+    while (!result && attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      attempts++;
 
-        try {
-          const statusResponse = await fetch(statusEndpoint, {
-            headers: {
-              Authorization: `Bearer ${KIEAI_API_KEY}`,
-            },
-          });
+      try {
+        const statusResponse = await fetch(statusEndpoint, {
+          headers: {
+            Authorization: `Bearer ${KIEAI_API_KEY}`,
+          },
+        });
 
-          const statusData = await statusResponse.json();
+        const statusData = await statusResponse.json();
+        
+        if (attempts % 5 === 0) {
+          console.log(`Poll attempt ${attempts}: ${JSON.stringify(statusData).substring(0, 300)}`);
+        }
+
+        if (statusData.code === 200 && statusData.data) {
+          const taskData = statusData.data;
+          const status = taskData.status || taskData.state;
           
-          if (attempts % 5 === 0) {
-            console.log(`Poll attempt ${attempts}: response = ${JSON.stringify(statusData).substring(0, 200)}`);
-          }
-
-          // Handle Flux Kontext response format according to documentation
-          if (statusData.code === 200 && statusData.data) {
-            const taskData = statusData.data;
-            
-            // Check if task is complete (successFlag = 1 or status = success)
-            if (taskData.successFlag === 1 || taskData.status === "success" || taskData.status === "SUCCESS") {
-              // Extract result URL from response - check all possible locations
-              result = taskData.response?.resultImageUrl || 
-                       taskData.response?.originImageUrl ||
-                       taskData.resultImageUrl ||
-                       taskData.imageUrl ||
-                       taskData.response?.imageUrl;
-              if (result) {
-                console.log(`Image generation successful, URL: ${result.substring(0, 100)}`);
-                break;
-              }
-            } else if (taskData.successFlag === 0 && taskData.errorMessage) {
-              console.error(`Image generation failed: ${taskData.errorMessage}`);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: taskData.errorMessage || "Генерация не удалась",
-                }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
+          if (status === 'completed' || status === 'success' || status === 'COMPLETED' || status === 'SUCCESS') {
+            result = extractImageUrl(taskData);
+            if (result) {
+              console.log(`Generation completed! URL: ${result.substring(0, 100)}`);
+              break;
             }
-            // Continue polling for pending/processing status
-          } else if (statusData.code === 404) {
-            // Task not found yet - continue polling
-            continue;
-          }
-          
-          // Legacy format handling
-          const status = statusData.data?.status || statusData.status;
-          if (status === "completed" || status === "success" || status === "SUCCESS") {
-            result = statusData.data?.output || statusData.data?.result || statusData.output || statusData.result;
-            break;
-          } else if (status === "failed" || status === "error" || status === "FAILED" || status === "fail") {
+          } else if (status === 'failed' || status === 'FAILED' || status === 'error') {
+            const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация не удалась';
+            console.error(`Generation failed: ${errorMsg}`);
             return new Response(
-              JSON.stringify({
-                success: false,
-                error: statusData.data?.error || statusData.error || statusData.msg || statusData.data?.failMsg || "Генерация не удалась",
-              }),
+              JSON.stringify({ success: false, error: errorMsg }),
               { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
-          // Continue polling for pending/processing status
-        } catch (pollError) {
-          console.error(`Poll error at attempt ${attempts}:`, pollError);
+          // pending, processing, running - продолжаем polling
         }
+      } catch (pollError) {
+        console.error(`Poll error at attempt ${attempts}:`, pollError);
       }
+    }
 
-      if (!result) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Превышено время ожидания генерации" }),
-          { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Extract image URL from result
-      const imageUrl = typeof result === "string" 
-        ? result 
-        : result.imageUrl || result.image_url || result.url || result.images?.[0]?.url || result.images?.[0];
-
-      console.log(`Generation completed, image URL: ${imageUrl?.substring(0, 50)}...`);
-
+    if (!result) {
       return new Response(
-        JSON.stringify({ success: true, image_url: imageUrl }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Превышено время ожидания генерации" }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Handle direct response (no taskId) - check for immediate result
-    const imageUrl = data.data?.imageUrl || data.data?.url || data.imageUrl || data.image_url || data.url || data.images?.[0]?.url || data.images?.[0] || data.output;
-    
-    if (imageUrl) {
-      console.log(`Direct response, image URL: ${imageUrl?.substring(0, 50)}...`);
-      return new Response(
-        JSON.stringify({ success: true, image_url: imageUrl }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // No image URL and no taskId - unexpected response
-    console.error("Unexpected API response:", data);
     return new Response(
-      JSON.stringify({ success: false, error: "Неожиданный ответ от API" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, image_url: result }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
@@ -240,3 +396,34 @@ serve(async (req) => {
     );
   }
 });
+
+// Извлечение URL изображения из различных форматов ответа
+function extractImageUrl(data: Record<string, unknown>): string | null {
+  // Проверяем все возможные пути к результату
+  const possiblePaths = [
+    (data as any).output?.images?.[0]?.url,
+    (data as any).output?.image_url,
+    (data as any).output?.url,
+    (data as any).images?.[0]?.url,
+    (data as any).images?.[0],
+    (data as any).image_url,
+    (data as any).imageUrl,
+    (data as any).url,
+    (data as any).result?.image_url,
+    (data as any).result?.url,
+    (data as any).response?.resultImageUrl,
+    (data as any).response?.originImageUrl,
+    (data as any).resultImageUrl,
+    (data as any).data?.output?.images?.[0]?.url,
+    (data as any).data?.images?.[0],
+    (data as any).data?.image_url,
+  ];
+  
+  for (const path of possiblePaths) {
+    if (typeof path === 'string' && path.startsWith('http')) {
+      return path;
+    }
+  }
+  
+  return null;
+}
