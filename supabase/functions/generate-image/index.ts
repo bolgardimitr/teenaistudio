@@ -16,83 +16,64 @@ interface GenerateImageRequest {
   isTest?: boolean;
 }
 
-// Маппинг UI моделей на реальные KIE.AI модели и их конфигурации
+// Маппинг UI моделей на правильные KIE.AI модели (согласно https://docs.kie.ai и https://kie.ai/market)
+// Используем единый createTask endpoint: https://api.kie.ai/api/v1/jobs/createTask
+
 interface ModelConfig {
   model: string;
   buildInput: (prompt: string, aspectRatio: string, referenceImage?: string) => Record<string, unknown>;
-  statusEndpoint?: string; // Если отличается от стандартного
+}
+
+// Функция для получения правильного KIE.AI имени модели с fallback
+function getKieAiModel(uiModel: string): string {
+  const mapping: Record<string, string> = {
+    // Проверенные модели из документации KIE.AI
+    'nano-banana': 'nano-banana',
+    'nano-banana-pro': 'nano-banana-pro',
+    'flux-kontext': 'flux-kontext-pro',
+    'flux-2': 'flux-2',
+    'seedream-4.0': 'seedream',
+    'seedream-4.5': 'seedream',
+    '4o-image': 'gpt-image-1',
+    'gpt-image-1.5': 'gpt-image-1.5',
+    'midjourney-v7': 'midjourney',
+    'ideogram-v3': 'ideogram',
+    'qwen': 'qwen-vl',
+    'qwen-image': 'qwen-vl',
+    'recraft': 'recraft-v3',
+    'grok-imagine': 'grok-imagine',
+    // Fallback для моделей, которые могут не поддерживаться
+    'kandinsky-3.1': 'nano-banana',
+    'playground': 'nano-banana',
+    'playground-ai': 'nano-banana',
+  };
+  
+  return mapping[uiModel] || 'nano-banana';
 }
 
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
-  // БЕСПЛАТНЫЕ модели
-  'kandinsky-3.1': {
-    model: 'bytedance/seedream', // Kandinsky недоступен в KIE.AI, используем Seedream 3.0 как замену
-    buildInput: (prompt, aspectRatio) => ({
-      prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
-      guidance_scale: 2.5,
-      enable_safety_checker: true,
-    }),
-  },
-  
-  // БАЗОВЫЕ модели
+  // Nano Banana (Google DeepMind)
   'nano-banana': {
-    model: 'fal-ai/nano-banana',
+    model: 'nano-banana',
     buildInput: (prompt, aspectRatio, referenceImage) => ({
       prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
+      aspect_ratio: aspectRatio,
       ...(referenceImage && { image_url: referenceImage }),
     }),
   },
   
   'nano-banana-pro': {
-    model: 'fal-ai/nano-banana-pro',
+    model: 'nano-banana-pro',
     buildInput: (prompt, aspectRatio, referenceImage) => ({
       prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
+      aspect_ratio: aspectRatio,
       ...(referenceImage && { image_url: referenceImage }),
     }),
   },
   
-  'qwen': {
-    model: 'alibaba/qwen-vl-max',
-    buildInput: (prompt, aspectRatio) => ({
-      prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
-    }),
-  },
-  
-  'playground': {
-    model: 'playgroundai/playground-v2.5',
-    buildInput: (prompt, aspectRatio) => ({
-      prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
-    }),
-  },
-  
-  'seedream-4.0': {
-    model: 'bytedance/seedream-4.0',
-    buildInput: (prompt, aspectRatio, referenceImage) => ({
-      prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
-      guidance_scale: 3.0,
-      ...(referenceImage && { image_url: referenceImage }),
-    }),
-  },
-  
-  'seedream-4.5': {
-    model: 'bytedance/seedream-4.5',
-    buildInput: (prompt, aspectRatio, referenceImage) => ({
-      prompt,
-      image_size: mapAspectRatioToSize(aspectRatio),
-      guidance_scale: 3.5,
-      quality: 'high',
-      ...(referenceImage && { image_url: referenceImage }),
-    }),
-  },
-  
+  // Flux (Black Forest Labs)
   'flux-kontext': {
-    model: 'black-forest-labs/flux-kontext',
+    model: 'flux-kontext-pro',
     buildInput: (prompt, aspectRatio, referenceImage) => ({
       prompt,
       aspect_ratio: aspectRatio,
@@ -103,7 +84,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
   },
   
   'flux-2': {
-    model: 'black-forest-labs/flux-1.1-pro-ultra',
+    model: 'flux-2',
     buildInput: (prompt, aspectRatio) => ({
       prompt,
       aspect_ratio: aspectRatio,
@@ -111,18 +92,29 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     }),
   },
   
-  'ideogram-v3': {
-    model: 'ideogram/ideogram-v3',
-    buildInput: (prompt, aspectRatio) => ({
+  // Seedream (ByteDance)
+  'seedream-4.0': {
+    model: 'seedream',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
       prompt,
       aspect_ratio: aspectRatio,
-      style_type: 'auto',
+      ...(referenceImage && { image_url: referenceImage }),
     }),
   },
   
-  // ПРЕМИУМ модели
+  'seedream-4.5': {
+    model: 'seedream',
+    buildInput: (prompt, aspectRatio, referenceImage) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+      quality: 'high',
+      ...(referenceImage && { image_url: referenceImage }),
+    }),
+  },
+  
+  // OpenAI GPT Image
   '4o-image': {
-    model: 'openai/gpt-image-1',
+    model: 'gpt-image-1',
     buildInput: (prompt, aspectRatio) => ({
       prompt,
       size: mapAspectRatioToOpenAISize(aspectRatio),
@@ -130,24 +122,72 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     }),
   },
   
+  'gpt-image-1.5': {
+    model: 'gpt-image-1.5',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      size: mapAspectRatioToOpenAISize(aspectRatio),
+      quality: 'high',
+    }),
+  },
+  
+  // Midjourney
   'midjourney-v7': {
-    model: 'midjourney/midjourney-v7',
+    model: 'midjourney',
     buildInput: (prompt, aspectRatio) => ({
       prompt: `${prompt} --ar ${aspectRatio} --v 7`,
     }),
   },
   
-  'recraft': {
-    model: 'recraft/recraft-v3',
+  // Ideogram
+  'ideogram-v3': {
+    model: 'ideogram',
     buildInput: (prompt, aspectRatio) => ({
       prompt,
-      size: mapAspectRatioToSize(aspectRatio),
+      aspect_ratio: aspectRatio,
+      style_type: 'auto',
+    }),
+  },
+  
+  // Qwen
+  'qwen': {
+    model: 'qwen-vl',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+    }),
+  },
+  
+  // Recraft
+  'recraft': {
+    model: 'recraft-v3',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
       style: 'realistic_image',
     }),
   },
   
+  // Grok Imagine (xAI)
   'grok-imagine': {
-    model: 'xai/grok-2-image',
+    model: 'grok-imagine',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+    }),
+  },
+  
+  // Fallback модели - используют nano-banana
+  'kandinsky-3.1': {
+    model: 'nano-banana',
+    buildInput: (prompt, aspectRatio) => ({
+      prompt,
+      aspect_ratio: aspectRatio,
+    }),
+  },
+  
+  'playground': {
+    model: 'nano-banana',
     buildInput: (prompt, aspectRatio) => ({
       prompt,
       aspect_ratio: aspectRatio,
@@ -237,13 +277,18 @@ serve(async (req) => {
     console.log('Prompt:', prompt.substring(0, 100) + '...');
     console.log('Aspect Ratio:', aspectRatio);
     
+    // Используем getKieAiModel для получения правильного имени модели с fallback
+    const kieModel = getKieAiModel(normalizedModel);
+    
     if (!modelConfig) {
-      console.log(`Model ${normalizedModel} not found, using flux-kontext as fallback`);
+      console.log(`Model ${normalizedModel} not found in configs, using nano-banana as fallback`);
     }
     
-    const config = modelConfig || MODEL_CONFIGS['flux-kontext'];
+    // Используем конфиг модели или fallback на nano-banana
+    const config = modelConfig || MODEL_CONFIGS['nano-banana'];
     
-    console.log('Using KIE.AI model:', config.model);
+    console.log(`UI Model: ${model} → Normalized: ${normalizedModel} → KIE.AI Model: ${kieModel}`);
+    console.log('Using config model:', config.model);
 
     // Собираем полный prompt со стилем
     const fullPrompt = style && style !== 'photorealism' 
