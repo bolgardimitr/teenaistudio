@@ -118,55 +118,63 @@ serve(async (req) => {
     // Polling для получения результата
     let result = null;
     let attempts = 0;
-    const maxAttempts = isTest ? 30 : 90;
+    const maxAttempts = 30; // Максимум 60 секунд (30 попыток по 2 сек)
 
     while (!result && attempts < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       attempts++;
 
       try {
-        // Пробуем разные endpoints для проверки статуса
-        const statusEndpoints = [
-          `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=${taskId}`,
-          `https://api.kie.ai/api/v1/record-info?taskId=${taskId}`,
-        ];
+        const statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=${taskId}`;
+        
+        const statusResponse = await fetch(statusEndpoint, {
+          headers: {
+            Authorization: `Bearer ${KIEAI_API_KEY}`,
+          },
+        });
 
-        for (const statusEndpoint of statusEndpoints) {
-          const statusResponse = await fetch(statusEndpoint, {
-            headers: {
-              Authorization: `Bearer ${KIEAI_API_KEY}`,
-            },
-          });
+        if (!statusResponse.ok) {
+          console.log(`Poll attempt ${attempts}: HTTP ${statusResponse.status}`);
+          continue;
+        }
 
-          if (!statusResponse.ok) continue;
+        const statusData = await statusResponse.json();
+        
+        // Логируем каждый 5-й запрос и последние попытки
+        if (attempts % 5 === 0 || attempts >= maxAttempts - 3) {
+          console.log(`Poll attempt ${attempts}/${maxAttempts}: ${JSON.stringify(statusData).substring(0, 500)}`);
+        }
 
-          const statusData = await statusResponse.json();
+        if (statusData.code === 200 && statusData.data) {
+          const taskData = statusData.data;
           
-          if (attempts % 5 === 0) {
-            console.log(`Poll attempt ${attempts} (${statusEndpoint}): ${JSON.stringify(statusData).substring(0, 300)}`);
-          }
-
-          if (statusData.code === 200 && statusData.data) {
-            const taskData = statusData.data;
-            const status = taskData.status || taskData.state;
+          // KIE.AI использует completeTime как признак завершения!
+          const isCompleted = taskData.completeTime !== null && taskData.completeTime !== undefined;
+          const status = taskData.status || taskData.state;
+          
+          console.log(`Task status check: completeTime=${taskData.completeTime}, status=${status}, isCompleted=${isCompleted}`);
+          
+          if (isCompleted || status === 'completed' || status === 'success') {
+            // Логируем полный ответ для отладки
+            console.log(`Task completed! Full response: ${JSON.stringify(taskData)}`);
             
-            if (status === 'completed' || status === 'success' || status === 'COMPLETED' || status === 'SUCCESS') {
-              result = extractImageUrl(taskData);
-              if (result) {
-                console.log(`Generation completed! URL: ${result.substring(0, 100)}`);
-                break;
-              }
-            } else if (status === 'failed' || status === 'FAILED' || status === 'error') {
-              const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация не удалась';
-              console.error(`Generation failed: ${errorMsg}`);
-              return new Response(
-                JSON.stringify({ success: false, error: errorMsg }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
+            // Извлекаем URL из response объекта
+            result = extractImageUrl(taskData);
+            
+            if (result) {
+              console.log(`SUCCESS! Image URL: ${result}`);
+              break;
+            } else {
+              console.error('Task completed but no image URL found in response');
             }
+          } else if (status === 'failed' || status === 'error') {
+            const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация не удалась';
+            console.error(`Generation failed: ${errorMsg}`);
+            return new Response(
+              JSON.stringify({ success: false, error: errorMsg }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
           }
-          
-          if (result) break;
         }
       } catch (pollError) {
         console.error(`Poll error at attempt ${attempts}:`, pollError);
@@ -174,9 +182,13 @@ serve(async (req) => {
     }
 
     if (!result) {
+      console.error(`Timeout after ${attempts} attempts`);
       return new Response(
-        JSON.stringify({ success: false, error: "Превышено время ожидания генерации" }),
-        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          success: false, 
+          error: "Генерация заняла слишком много времени. Попробуйте ещё раз или выберите другую модель." 
+        }),
+        { status: 408, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -197,9 +209,19 @@ serve(async (req) => {
   }
 });
 
-// Извлечение URL изображения из различных форматов ответа
+// Извлечение URL изображения из различных форматов ответа KIE.AI
 function extractImageUrl(data: Record<string, unknown>): string | null {
+  // Логируем структуру для отладки
+  console.log('Extracting URL from:', JSON.stringify(data).substring(0, 1000));
+  
+  // KIE.AI flux-kontext возвращает URL в response.resultImageUrl
   const possiblePaths = [
+    // KIE.AI flux-kontext format
+    (data as any).response?.resultImageUrl,
+    (data as any).response?.originImageUrl,
+    (data as any).resultImageUrl,
+    (data as any).originImageUrl,
+    // Стандартные форматы
     (data as any).output?.images?.[0]?.url,
     (data as any).output?.image_url,
     (data as any).output?.url,
@@ -210,19 +232,22 @@ function extractImageUrl(data: Record<string, unknown>): string | null {
     (data as any).url,
     (data as any).result?.image_url,
     (data as any).result?.url,
-    (data as any).response?.resultImageUrl,
-    (data as any).response?.originImageUrl,
-    (data as any).resultImageUrl,
+    // Вложенные в data
+    (data as any).data?.response?.resultImageUrl,
+    (data as any).data?.resultImageUrl,
     (data as any).data?.output?.images?.[0]?.url,
     (data as any).data?.images?.[0],
     (data as any).data?.image_url,
+    (data as any).data?.url,
   ];
   
   for (const path of possiblePaths) {
     if (typeof path === 'string' && path.startsWith('http')) {
+      console.log('Found image URL at path:', path.substring(0, 100));
       return path;
     }
   }
   
+  console.error('No image URL found in any known path');
   return null;
 }
