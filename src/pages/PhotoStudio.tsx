@@ -27,8 +27,12 @@ interface PhotoModel {
   freeLimit?: number;
 }
 
-const photoModels: PhotoModel[] = [
-  // FREE models
+interface PhotoModelExtended extends PhotoModel {
+  available: boolean;
+}
+
+const photoModels: PhotoModelExtended[] = [
+  // FREE models - ВРЕМЕННО ОТКЛЮЧЕНА (не работает API)
   {
     id: 'kandinsky',
     name: 'Kandinsky 3.1',
@@ -37,8 +41,19 @@ const photoModels: PhotoModel[] = [
     cost: 0,
     description: 'Российская модель, Сбер, без ограничений',
     requiredRole: 'free',
+    available: false, // Временно недоступна
   },
   // BASIC models
+  {
+    id: 'flux-kontext',
+    name: 'Flux Kontext',
+    badge: 'basic',
+    badgeLabel: '⭐ 8 токенов',
+    cost: 8,
+    description: 'Black Forest Labs, консистентность персонажей ✅ Работает',
+    requiredRole: 'basic',
+    available: true, // Единственная работающая модель
+  },
   {
     id: 'nano-banana',
     name: 'Nano Banana',
@@ -47,6 +62,7 @@ const photoModels: PhotoModel[] = [
     cost: 4,
     description: 'Gemini 2.5 Flash, быстрая генерация',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'qwen-image',
@@ -56,6 +72,7 @@ const photoModels: PhotoModel[] = [
     cost: 4,
     description: 'Alibaba, open-source модель',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'playground-ai',
@@ -65,6 +82,7 @@ const photoModels: PhotoModel[] = [
     cost: 4,
     description: 'Быстрая генерация, хороший старт',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'seedream',
@@ -74,15 +92,7 @@ const photoModels: PhotoModel[] = [
     cost: 4,
     description: 'ByteDance, до 4K разрешения',
     requiredRole: 'basic',
-  },
-  {
-    id: 'flux-kontext',
-    name: 'Flux Kontext',
-    badge: 'basic',
-    badgeLabel: '⭐ 8 токенов',
-    cost: 8,
-    description: 'Black Forest Labs, консистентность персонажей',
-    requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'nano-banana-pro',
@@ -92,6 +102,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'Gemini 3 Pro, 4K, точное локальное редактирование',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'ideogram-v3',
@@ -101,6 +112,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'Отличный текст на изображениях, рефрейминг',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   {
     id: 'flux-2',
@@ -110,6 +122,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'Black Forest Labs, улучшенная версия',
     requiredRole: 'basic',
+    available: false, // Временно недоступна
   },
   // PREMIUM models
   {
@@ -120,6 +133,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'OpenAI GPT-4o, точный текст на картинках',
     requiredRole: 'premium',
+    available: false, // Временно недоступна
   },
   {
     id: 'seedream-4-5',
@@ -129,6 +143,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'ByteDance, 4K, до 10 референсов',
     requiredRole: 'premium',
+    available: false, // Временно недоступна
   },
   {
     id: 'midjourney-v7',
@@ -138,6 +153,7 @@ const photoModels: PhotoModel[] = [
     cost: 15,
     description: 'Художественные стили, высшая эстетика',
     requiredRole: 'premium',
+    available: false, // Временно недоступна
   },
   {
     id: 'recraft',
@@ -147,6 +163,7 @@ const photoModels: PhotoModel[] = [
     cost: 12,
     description: 'Профессиональное удаление фона, редактирование',
     requiredRole: 'premium',
+    available: false, // Временно недоступна
   },
   {
     id: 'grok-imagine',
@@ -156,6 +173,7 @@ const photoModels: PhotoModel[] = [
     cost: 12,
     description: 'xAI, уникальные стили Илона Маска',
     requiredRole: 'premium',
+    available: false, // Временно недоступна
   },
 ];
 
@@ -229,7 +247,9 @@ export default function PhotoStudio() {
 
   const userRoleLevel = roleHierarchy[role || 'free'];
 
-  const canAccessModel = (model: PhotoModel) => {
+  const canAccessModel = (model: PhotoModelExtended) => {
+    // Model must be available AND user must have required role
+    if (!model.available) return false;
     return userRoleLevel >= roleHierarchy[model.requiredRole];
   };
 
@@ -387,6 +407,8 @@ export default function PhotoStudio() {
       });
     }, 1000);
 
+    let generationId: string | null = null;
+    
     try {
       // Get first reference image as base64 if available
       const referenceImage = await getFirstReferenceAsBase64();
@@ -406,6 +428,7 @@ export default function PhotoStudio() {
         .single();
 
       if (genError) throw genError;
+      generationId = generation.id;
 
       // Call the edge function
       const { data, error } = await supabase.functions.invoke('generate-image', {
@@ -479,6 +502,17 @@ export default function PhotoStudio() {
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при генерации изображения';
       setGenerationError(errorMessage);
       toast.error(errorMessage);
+      
+      // Update generation record with error status
+      if (generationId) {
+        await supabase
+          .from('generations')
+          .update({ 
+            status: 'failed',
+            error_message: errorMessage,
+          })
+          .eq('id', generationId);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -609,7 +643,14 @@ export default function PhotoStudio() {
                               : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          {!isAccessible && (
+                          {!model.available && (
+                            <div className="absolute top-2 right-2">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">
+                                Скоро
+                              </span>
+                            </div>
+                          )}
+                          {model.available && !canAccessModel(model) && (
                             <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
                               <Lock className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -655,7 +696,14 @@ export default function PhotoStudio() {
                               : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          {!isAccessible && (
+                          {!model.available && (
+                            <div className="absolute top-2 right-2">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">
+                                Скоро
+                              </span>
+                            </div>
+                          )}
+                          {model.available && !canAccessModel(model) && (
                             <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
                               <Lock className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -701,7 +749,14 @@ export default function PhotoStudio() {
                               : 'bg-muted/20 border border-border/30 opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          {!isAccessible && (
+                          {!model.available && (
+                            <div className="absolute top-2 right-2">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">
+                                Скоро
+                              </span>
+                            </div>
+                          )}
+                          {model.available && !canAccessModel(model) && (
                             <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
                               <Lock className="h-5 w-5 text-muted-foreground" />
                             </div>
