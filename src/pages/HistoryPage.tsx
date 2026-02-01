@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
   Clock, 
@@ -11,7 +11,8 @@ import {
   Music,
   Image,
   Video,
-  Droplet
+  Droplet,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ interface Generation {
   tokens_spent: number;
   created_at: string;
   is_public: boolean;
+  error_message?: string | null;
 }
 
 const modelOptions = [
@@ -54,6 +56,7 @@ const modelOptions = [
 
 export default function HistoryPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
@@ -164,15 +167,36 @@ export default function HistoryPage() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, errorMessage?: string | null) => {
     switch (status) {
       case 'completed':
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/50">✓ succeeded</Badge>;
       case 'failed':
-        return <Badge variant="destructive">✗ failed</Badge>;
+        return (
+          <Badge variant="destructive" title={errorMessage || 'Ошибка генерации'}>
+            ✗ failed
+          </Badge>
+        );
+      case 'processing':
+        return <Badge variant="secondary">⏳ processing</Badge>;
       default:
         return <Badge variant="secondary">⏳ pending</Badge>;
     }
+  };
+
+  const retryGeneration = (gen: Generation) => {
+    // Navigate to the appropriate studio with the prompt pre-filled
+    if (gen.type === 'photo') {
+      navigate('/photo', { state: { prompt: gen.prompt, model: gen.model } });
+    } else if (gen.type === 'video') {
+      navigate('/video', { state: { prompt: gen.prompt, model: gen.model } });
+    } else if (gen.type === 'music') {
+      navigate('/music', { state: { prompt: gen.prompt, model: gen.model } });
+    }
+    toast({
+      title: 'Повторная генерация',
+      description: 'Промпт скопирован. Нажмите "Создать" для повторной генерации.',
+    });
   };
 
   const getTypeIcon = (type: string) => {
@@ -381,7 +405,7 @@ export default function HistoryPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    {getStatusBadge(gen.status)}
+                    {getStatusBadge(gen.status, gen.error_message)}
                     {gen.model && (
                       <Badge variant="outline" className="border-primary text-primary">
                         {gen.model}
@@ -415,17 +439,32 @@ export default function HistoryPage() {
                     </span>
 
                     <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" className="border-border text-xs">
-                        <Image className="w-3 h-3 mr-1" /> Как референс
-                      </Button>
-                      {gen.type === 'photo' && (
-                        <Button variant="outline" size="sm" className="border-border text-xs">
-                          <Video className="w-3 h-3 mr-1" /> Видео из фото
+                      {/* Retry button for failed/pending/processing */}
+                      {(gen.status === 'failed' || gen.status === 'pending' || gen.status === 'processing') && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-primary text-primary text-xs"
+                          onClick={() => retryGeneration(gen)}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" /> Повторить
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" className="border-border text-xs">
-                        <Droplet className="w-3 h-3 mr-1" /> Водяной знак
-                      </Button>
+                      {gen.status === 'completed' && (
+                        <>
+                          <Button variant="outline" size="sm" className="border-border text-xs">
+                            <Image className="w-3 h-3 mr-1" /> Как референс
+                          </Button>
+                          {gen.type === 'photo' && (
+                            <Button variant="outline" size="sm" className="border-border text-xs">
+                              <Video className="w-3 h-3 mr-1" /> Видео из фото
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" className="border-border text-xs">
+                            <Droplet className="w-3 h-3 mr-1" /> Водяной знак
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
