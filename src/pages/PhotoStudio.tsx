@@ -32,27 +32,16 @@ interface PhotoModelExtended extends PhotoModel {
 }
 
 const photoModels: PhotoModelExtended[] = [
-  // FREE models - ВРЕМЕННО ОТКЛЮЧЕНА (не работает API)
-  {
-    id: 'kandinsky',
-    name: 'Kandinsky 3.1',
-    badge: 'free',
-    badgeLabel: '🆓 FREE',
-    cost: 0,
-    description: 'Российская модель, Сбер, без ограничений',
-    requiredRole: 'free',
-    available: false, // Временно недоступна
-  },
-  // BASIC models
+  // БАЗОВЫЕ модели KIE.AI (все работают)
   {
     id: 'flux-kontext',
     name: 'Flux Kontext',
     badge: 'basic',
     badgeLabel: '⭐ 8 токенов',
     cost: 8,
-    description: 'Black Forest Labs, консистентность персонажей ✅ Работает',
+    description: 'Black Forest Labs, консистентность персонажей',
     requiredRole: 'basic',
-    available: true, // Единственная работающая модель
+    available: true,
   },
   {
     id: 'nano-banana',
@@ -62,27 +51,7 @@ const photoModels: PhotoModelExtended[] = [
     cost: 4,
     description: 'Gemini 2.5 Flash, быстрая генерация',
     requiredRole: 'basic',
-    available: false, // Временно недоступна
-  },
-  {
-    id: 'qwen-image',
-    name: 'Qwen Image',
-    badge: 'basic',
-    badgeLabel: '⭐ 4 токена',
-    cost: 4,
-    description: 'Alibaba, open-source модель',
-    requiredRole: 'basic',
-    available: false, // Временно недоступна
-  },
-  {
-    id: 'playground-ai',
-    name: 'Playground AI',
-    badge: 'basic',
-    badgeLabel: '⭐ 4 токена',
-    cost: 4,
-    description: 'Быстрая генерация, хороший старт',
-    requiredRole: 'basic',
-    available: false, // Временно недоступна
+    available: true,
   },
   {
     id: 'seedream',
@@ -92,7 +61,17 @@ const photoModels: PhotoModelExtended[] = [
     cost: 4,
     description: 'ByteDance, до 4K разрешения',
     requiredRole: 'basic',
-    available: false, // Временно недоступна
+    available: true,
+  },
+  {
+    id: 'qwen-image',
+    name: 'Qwen Image',
+    badge: 'basic',
+    badgeLabel: '⭐ 4 токена',
+    cost: 4,
+    description: 'Alibaba, open-source модель',
+    requiredRole: 'basic',
+    available: true,
   },
   {
     id: 'nano-banana-pro',
@@ -100,9 +79,9 @@ const photoModels: PhotoModelExtended[] = [
     badge: 'basic',
     badgeLabel: '⭐ 15 токенов',
     cost: 15,
-    description: 'Gemini 3 Pro, 4K, точное локальное редактирование',
+    description: 'Gemini 3 Pro, 4K, точное редактирование',
     requiredRole: 'basic',
-    available: false, // Временно недоступна
+    available: true,
   },
   {
     id: 'ideogram-v3',
@@ -110,30 +89,20 @@ const photoModels: PhotoModelExtended[] = [
     badge: 'basic',
     badgeLabel: '⭐ 15 токенов',
     cost: 15,
-    description: 'Отличный текст на изображениях, рефрейминг',
+    description: 'Отличный текст на изображениях',
     requiredRole: 'basic',
-    available: false, // Временно недоступна
+    available: true,
   },
-  {
-    id: 'flux-2',
-    name: 'Flux 2',
-    badge: 'basic',
-    badgeLabel: '⭐ 15 токенов',
-    cost: 15,
-    description: 'Black Forest Labs, улучшенная версия',
-    requiredRole: 'basic',
-    available: false, // Временно недоступна
-  },
-  // PREMIUM models
+  // ПРЕМИУМ модели KIE.AI
   {
     id: '4o-image',
     name: '4o Image',
     badge: 'premium',
-    badgeLabel: '💎 15 токенов',
-    cost: 15,
+    badgeLabel: '💎 10 токенов',
+    cost: 10,
     description: 'OpenAI GPT-4o, точный текст на картинках',
     requiredRole: 'premium',
-    available: false, // Временно недоступна
+    available: true,
   },
   {
     id: 'seedream-4-5',
@@ -143,7 +112,7 @@ const photoModels: PhotoModelExtended[] = [
     cost: 15,
     description: 'ByteDance, 4K, до 10 референсов',
     requiredRole: 'premium',
-    available: false, // Временно недоступна
+    available: true,
   },
   {
     id: 'midjourney-v7',
@@ -153,7 +122,7 @@ const photoModels: PhotoModelExtended[] = [
     cost: 15,
     description: 'Художественные стили, высшая эстетика',
     requiredRole: 'premium',
-    available: false, // Временно недоступна
+    available: true,
   },
   {
     id: 'recraft',
@@ -161,19 +130,9 @@ const photoModels: PhotoModelExtended[] = [
     badge: 'premium',
     badgeLabel: '💎 12 токенов',
     cost: 12,
-    description: 'Профессиональное удаление фона, редактирование',
+    description: 'Профессиональное удаление фона',
     requiredRole: 'premium',
-    available: false, // Временно недоступна
-  },
-  {
-    id: 'grok-imagine',
-    name: 'Grok Imagine',
-    badge: 'premium',
-    badgeLabel: '💎 12 токенов',
-    cost: 12,
-    description: 'xAI, уникальные стили Илона Маска',
-    requiredRole: 'premium',
-    available: false, // Временно недоступна
+    available: true,
   },
 ];
 

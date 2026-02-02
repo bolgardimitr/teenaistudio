@@ -14,8 +14,153 @@ interface GenerateImageRequest {
   isTest?: boolean;
 }
 
-// ВРЕМЕННОЕ РЕШЕНИЕ: используем проверенный endpoint flux-kontext для всех моделей
-const WORKING_ENDPOINT = "https://api.kie.ai/api/v1/flux/kontext/generate";
+// Конфигурация моделей KIE.AI для генерации изображений
+interface ImageModelConfig {
+  kieModel: string;
+  createEndpoint: string;
+  pollEndpoint: string;
+}
+
+const IMAGE_MODELS: Record<string, ImageModelConfig> = {
+  // Flux Kontext (проверено работает)
+  'flux-kontext': {
+    kieModel: 'flux-kontext-pro',
+    createEndpoint: '/api/v1/flux/kontext/generate',
+    pollEndpoint: '/api/v1/flux/kontext/record-info'
+  },
+  
+  // Nano Banana (Gemini 2.5 Flash)
+  'nano-banana': {
+    kieModel: 'nano-banana',
+    createEndpoint: '/api/v1/nano-banana/generate',
+    pollEndpoint: '/api/v1/nano-banana/record-info'
+  },
+  
+  // Nano Banana Pro (Gemini 3 Pro)
+  'nano-banana-pro': {
+    kieModel: 'nano-banana-pro',
+    createEndpoint: '/api/v1/nano-banana/generate',
+    pollEndpoint: '/api/v1/nano-banana/record-info'
+  },
+  
+  // Seedream 4.0 (ByteDance)
+  'seedream': {
+    kieModel: 'seedream',
+    createEndpoint: '/api/v1/seedream/generate',
+    pollEndpoint: '/api/v1/seedream/record-info'
+  },
+  'seedream-4.0': {
+    kieModel: 'seedream',
+    createEndpoint: '/api/v1/seedream/generate',
+    pollEndpoint: '/api/v1/seedream/record-info'
+  },
+  
+  // Seedream 4.5 (ByteDance)
+  'seedream-4-5': {
+    kieModel: 'seedream-4.5',
+    createEndpoint: '/api/v1/seedream/generate',
+    pollEndpoint: '/api/v1/seedream/record-info'
+  },
+  'seedream-4.5': {
+    kieModel: 'seedream-4.5',
+    createEndpoint: '/api/v1/seedream/generate',
+    pollEndpoint: '/api/v1/seedream/record-info'
+  },
+  
+  // Qwen Image (Alibaba)
+  'qwen-image': {
+    kieModel: 'qwen-vl',
+    createEndpoint: '/api/v1/qwen/generate',
+    pollEndpoint: '/api/v1/qwen/record-info'
+  },
+  
+  // 4o Image (OpenAI GPT-4o)
+  '4o-image': {
+    kieModel: 'gpt-image-1',
+    createEndpoint: '/api/v1/4o-image/generate',
+    pollEndpoint: '/api/v1/4o-image/record-info'
+  },
+  
+  // Midjourney V7
+  'midjourney-v7': {
+    kieModel: 'midjourney',
+    createEndpoint: '/api/v1/midjourney/imagine',
+    pollEndpoint: '/api/v1/midjourney/record-info'
+  },
+  
+  // Ideogram V3
+  'ideogram-v3': {
+    kieModel: 'ideogram-v3',
+    createEndpoint: '/api/v1/ideogram/generate',
+    pollEndpoint: '/api/v1/ideogram/record-info'
+  },
+  
+  // Recraft
+  'recraft': {
+    kieModel: 'recraft-v3',
+    createEndpoint: '/api/v1/recraft/generate',
+    pollEndpoint: '/api/v1/recraft/record-info'
+  },
+};
+
+// Нормализация названия модели из UI
+function normalizeModelId(uiModel: string): string {
+  const mapping: Record<string, string> = {
+    // Flux
+    'Flux Kontext': 'flux-kontext',
+    'flux kontext': 'flux-kontext',
+    'flux-kontext': 'flux-kontext',
+    
+    // Nano Banana
+    'Nano Banana': 'nano-banana',
+    'nano banana': 'nano-banana',
+    'nano-banana': 'nano-banana',
+    
+    // Nano Banana Pro
+    'Nano Banana Pro': 'nano-banana-pro',
+    'nano banana pro': 'nano-banana-pro',
+    'nano-banana-pro': 'nano-banana-pro',
+    
+    // Seedream
+    'Seedream 4.0': 'seedream',
+    'seedream 4.0': 'seedream',
+    'seedream': 'seedream',
+    'Seedream 4.5': 'seedream-4.5',
+    'seedream 4.5': 'seedream-4.5',
+    'seedream-4-5': 'seedream-4.5',
+    
+    // Qwen
+    'Qwen Image': 'qwen-image',
+    'qwen image': 'qwen-image',
+    'qwen-image': 'qwen-image',
+    
+    // 4o Image
+    '4o Image': '4o-image',
+    '4o image': '4o-image',
+    '4o-image': '4o-image',
+    
+    // Midjourney
+    'Midjourney V7': 'midjourney-v7',
+    'midjourney v7': 'midjourney-v7',
+    'midjourney-v7': 'midjourney-v7',
+    
+    // Ideogram
+    'Ideogram V3': 'ideogram-v3',
+    'ideogram v3': 'ideogram-v3',
+    'ideogram-v3': 'ideogram-v3',
+    
+    // Recraft
+    'Recraft': 'recraft',
+    'recraft': 'recraft',
+  };
+  
+  // Проверяем маппинг
+  const normalized = mapping[uiModel] || mapping[uiModel.toLowerCase()];
+  if (normalized) return normalized;
+  
+  // Fallback: преобразуем к kebab-case
+  return uiModel.toLowerCase().replace(/\s+/g, '-');
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -35,18 +180,29 @@ serve(async (req) => {
       );
     }
 
+    // Нормализуем модель
+    const modelId = normalizeModelId(model);
+    const modelConfig = IMAGE_MODELS[modelId];
+    
+    // Если модель не найдена - используем flux-kontext
+    const config = modelConfig || IMAGE_MODELS['flux-kontext'];
+    const actualModelId = modelConfig ? modelId : 'flux-kontext';
+
     console.log('=== GENERATE IMAGE REQUEST ===');
     console.log('UI Model:', model);
+    console.log('Normalized:', modelId);
+    console.log('Using:', actualModelId);
     console.log('Prompt:', prompt.substring(0, 100) + '...');
     console.log('Aspect Ratio:', aspectRatio);
-    console.log('Using endpoint:', WORKING_ENDPOINT);
+    console.log('Create Endpoint:', config.createEndpoint);
+    console.log('Poll Endpoint:', config.pollEndpoint);
 
     // Собираем полный prompt со стилем
     const fullPrompt = style && style !== 'photorealism' 
       ? `${prompt}, ${style} style` 
       : prompt;
 
-    // Формируем тело запроса для flux-kontext
+    // Формируем тело запроса
     const requestBody = {
       prompt: fullPrompt,
       aspect_ratio: aspectRatio || '1:1',
@@ -55,7 +211,10 @@ serve(async (req) => {
 
     console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-    const response = await fetch(WORKING_ENDPOINT, {
+    const createUrl = `https://api.kie.ai${config.createEndpoint}`;
+    console.log('Calling:', createUrl);
+
+    const response = await fetch(createUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,73 +275,10 @@ serve(async (req) => {
     console.log(`Got taskId: ${taskId}, starting polling...`);
     
     // Polling для получения результата
-    let result = null;
-    let attempts = 0;
-    const maxAttempts = 30; // Максимум 60 секунд (30 попыток по 2 сек)
-
-    while (!result && attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      attempts++;
-
-      try {
-        const statusEndpoint = `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=${taskId}`;
-        
-        const statusResponse = await fetch(statusEndpoint, {
-          headers: {
-            Authorization: `Bearer ${KIEAI_API_KEY}`,
-          },
-        });
-
-        if (!statusResponse.ok) {
-          console.log(`Poll attempt ${attempts}: HTTP ${statusResponse.status}`);
-          continue;
-        }
-
-        const statusData = await statusResponse.json();
-        
-        // Логируем каждый 5-й запрос и последние попытки
-        if (attempts % 5 === 0 || attempts >= maxAttempts - 3) {
-          console.log(`Poll attempt ${attempts}/${maxAttempts}: ${JSON.stringify(statusData).substring(0, 500)}`);
-        }
-
-        if (statusData.code === 200 && statusData.data) {
-          const taskData = statusData.data;
-          
-          // KIE.AI использует completeTime как признак завершения!
-          const isCompleted = taskData.completeTime !== null && taskData.completeTime !== undefined;
-          const status = taskData.status || taskData.state;
-          
-          console.log(`Task status check: completeTime=${taskData.completeTime}, status=${status}, isCompleted=${isCompleted}`);
-          
-          if (isCompleted || status === 'completed' || status === 'success') {
-            // Логируем полный ответ для отладки
-            console.log(`Task completed! Full response: ${JSON.stringify(taskData)}`);
-            
-            // Извлекаем URL из response объекта
-            result = extractImageUrl(taskData);
-            
-            if (result) {
-              console.log(`SUCCESS! Image URL: ${result}`);
-              break;
-            } else {
-              console.error('Task completed but no image URL found in response');
-            }
-          } else if (status === 'failed' || status === 'error') {
-            const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация не удалась';
-            console.error(`Generation failed: ${errorMsg}`);
-            return new Response(
-              JSON.stringify({ success: false, error: errorMsg }),
-              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-        }
-      } catch (pollError) {
-        console.error(`Poll error at attempt ${attempts}:`, pollError);
-      }
-    }
+    const result = await pollForResult(taskId, KIEAI_API_KEY, config.pollEndpoint, isTest);
 
     if (!result) {
-      console.error(`Timeout after ${attempts} attempts`);
+      console.error(`Timeout waiting for result`);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -209,12 +305,76 @@ serve(async (req) => {
   }
 });
 
+// Polling для получения результата
+async function pollForResult(
+  taskId: string, 
+  apiKey: string, 
+  pollEndpoint: string,
+  isTest?: boolean
+): Promise<string | null> {
+  const maxAttempts = isTest ? 15 : 30; // 30-60 секунд
+  
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    try {
+      const statusUrl = `https://api.kie.ai${pollEndpoint}?taskId=${taskId}`;
+      
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        console.log(`Poll attempt ${attempts + 1}: HTTP ${statusResponse.status}`);
+        continue;
+      }
+
+      const statusData = await statusResponse.json();
+      
+      // Логируем каждый 5-й запрос
+      if ((attempts + 1) % 5 === 0 || attempts >= maxAttempts - 3) {
+        console.log(`Poll attempt ${attempts + 1}/${maxAttempts}: ${JSON.stringify(statusData).substring(0, 500)}`);
+      }
+
+      if (statusData.code === 200 && statusData.data) {
+        const taskData = statusData.data;
+        
+        // KIE.AI использует completeTime как признак завершения
+        const isCompleted = taskData.completeTime !== null && taskData.completeTime !== undefined;
+        const status = taskData.status || taskData.state;
+        
+        if (isCompleted || status === 'completed' || status === 'success' || status === 'COMPLETED' || status === 'SUCCESS') {
+          console.log(`Task completed! Full response: ${JSON.stringify(taskData).substring(0, 1000)}`);
+          
+          const imageUrl = extractImageUrl(taskData);
+          if (imageUrl) {
+            console.log(`SUCCESS! Image URL: ${imageUrl.substring(0, 100)}`);
+            return imageUrl;
+          } else {
+            console.error('Task completed but no image URL found');
+          }
+        } else if (status === 'failed' || status === 'error' || status === 'FAILED') {
+          const errorMsg = taskData.error || taskData.errorMessage || taskData.failMsg || 'Генерация не удалась';
+          console.error(`Generation failed: ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+      }
+    } catch (pollError) {
+      if (pollError instanceof Error && pollError.message !== 'Генерация не удалась') {
+        console.error(`Poll error at attempt ${attempts + 1}:`, pollError);
+      } else {
+        throw pollError;
+      }
+    }
+  }
+  
+  return null;
+}
+
 // Извлечение URL изображения из различных форматов ответа KIE.AI
 function extractImageUrl(data: Record<string, unknown>): string | null {
-  // Логируем структуру для отладки
-  console.log('Extracting URL from:', JSON.stringify(data).substring(0, 1000));
-  
-  // KIE.AI flux-kontext возвращает URL в response.resultImageUrl
   const possiblePaths = [
     // KIE.AI flux-kontext format
     (data as any).response?.resultImageUrl,
@@ -235,6 +395,7 @@ function extractImageUrl(data: Record<string, unknown>): string | null {
     // Вложенные в data
     (data as any).data?.response?.resultImageUrl,
     (data as any).data?.resultImageUrl,
+    (data as any).data?.originImageUrl,
     (data as any).data?.output?.images?.[0]?.url,
     (data as any).data?.images?.[0],
     (data as any).data?.image_url,
@@ -243,11 +404,9 @@ function extractImageUrl(data: Record<string, unknown>): string | null {
   
   for (const path of possiblePaths) {
     if (typeof path === 'string' && path.startsWith('http')) {
-      console.log('Found image URL at path:', path.substring(0, 100));
       return path;
     }
   }
   
-  console.error('No image URL found in any known path');
   return null;
 }

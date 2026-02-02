@@ -25,7 +25,7 @@ interface VideoModel {
 }
 
 const videoModels: VideoModel[] = [
-  // Бесплатные
+  // Бесплатные (KIE.AI)
   {
     id: 'luma-dream',
     name: 'Luma Dream Machine',
@@ -65,26 +65,6 @@ const videoModels: VideoModel[] = [
     cost: 80,
     description: 'Продвинутая версия с улучшенным качеством',
     requiredRole: 'premium',
-    category: 'OpenAI Sora',
-  },
-  {
-    id: 'sora-2-pro-story',
-    name: 'Sora 2 Pro Story',
-    badge: 'premium',
-    badgeLabel: '💎 100 токенов',
-    cost: 100,
-    description: 'Создание многосценарных историй',
-    requiredRole: 'premium',
-    category: 'OpenAI Sora',
-  },
-  {
-    id: 'sora-watermark-remover',
-    name: 'Sora Watermark Remover',
-    badge: 'basic',
-    badgeLabel: '⭐ 30 токенов',
-    cost: 30,
-    description: 'Удаление водяных знаков с видео',
-    requiredRole: 'basic',
     category: 'OpenAI Sora',
   },
   // Google Veo
@@ -129,16 +109,6 @@ const videoModels: VideoModel[] = [
     requiredRole: 'basic',
     category: 'Kling',
   },
-  {
-    id: 'kling-motion-control',
-    name: 'Kling 2.6 Motion Control',
-    badge: 'premium',
-    badgeLabel: '💎 90 токенов',
-    cost: 90,
-    description: 'Продвинутый контроль движений камеры',
-    requiredRole: 'premium',
-    category: 'Kling',
-  },
   // Seedance
   {
     id: 'seedance-pro',
@@ -150,38 +120,29 @@ const videoModels: VideoModel[] = [
     requiredRole: 'premium',
     category: 'Seedance',
   },
-  {
-    id: 'seedance-pro-fast',
-    name: 'Seedance Pro Fast',
-    badge: 'basic',
-    badgeLabel: '⭐ 80 токенов',
-    cost: 80,
-    description: 'Быстрая версия Seedance',
-    requiredRole: 'basic',
-    category: 'Seedance',
-  },
-  // Wan Animate
+  // Wan
   {
     id: 'wan-animate-move',
-    name: 'Wan Animate Move',
+    name: 'Wan 2.5',
     badge: 'basic',
     badgeLabel: '⭐ 40 токенов',
     cost: 40,
-    description: 'Анимация движений персонажей',
+    description: 'Alibaba, генерация с аудио',
     requiredRole: 'basic',
-    category: 'Wan Animate',
+    category: 'Wan',
   },
+  // Hailuo
   {
-    id: 'wan-animate-replace',
-    name: 'Wan Animate Replace',
+    id: 'hailuo-02',
+    name: 'Hailuo 02',
     badge: 'basic',
-    badgeLabel: '⭐ 45 токенов',
-    cost: 45,
-    description: 'Замена элементов в анимации',
+    badgeLabel: '⭐ 50 токенов',
+    cost: 50,
+    description: 'MiniMax, качественная генерация',
     requiredRole: 'basic',
-    category: 'Wan Animate',
+    category: 'Hailuo',
   },
-  // Другие
+  // Runway
   {
     id: 'runway-aleph',
     name: 'Runway Aleph',
@@ -190,11 +151,11 @@ const videoModels: VideoModel[] = [
     cost: 100,
     description: 'Продвинутое редактирование сцен',
     requiredRole: 'premium',
-    category: 'Другие',
+    category: 'Runway',
   },
 ];
 
-const modelCategories = ['Бесплатные', 'OpenAI Sora', 'Google Veo', 'Kling', 'Seedance', 'Wan Animate', 'Другие'];
+const modelCategories = ['Бесплатные', 'OpenAI Sora', 'Google Veo', 'Kling', 'Seedance', 'Wan', 'Hailuo', 'Runway'];
 
 import { AspectRatioIcon, aspectRatiosVideo } from '@/components/studio/AspectRatioIcon';
 
