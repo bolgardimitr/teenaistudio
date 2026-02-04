@@ -15,7 +15,128 @@ interface GenerateImageRequest {
 }
 
 // Base URL without trailing slash
-const KIE_API_BASE = 'https://api.kie.ai';
+const KIE_API_BASE = "https://api.kie.ai";
+
+// Маппинг UI модели → реальные endpoints KIE.AI
+const MODEL_ENDPOINTS: Record<string, { create: string; poll: string }> = {
+  "flux-kontext": {
+    create: "/api/v1/flux/kontext/generate",
+    poll: "/api/v1/flux/kontext/record-info",
+  },
+
+  "nano-banana": {
+    create: "/api/v1/nano-banana/generate",
+    poll: "/api/v1/nano-banana/record-info",
+  },
+  "nano-banana-pro": {
+    create: "/api/v1/nano-banana/generate",
+    poll: "/api/v1/nano-banana/record-info",
+  },
+
+  "seedream": {
+    create: "/api/v1/seedream/generate",
+    poll: "/api/v1/seedream/record-info",
+  },
+  "seedream-4.0": {
+    create: "/api/v1/seedream/generate",
+    poll: "/api/v1/seedream/record-info",
+  },
+  "seedream-4.5": {
+    create: "/api/v1/seedream/generate",
+    poll: "/api/v1/seedream/record-info",
+  },
+
+  "qwen-image": {
+    create: "/api/v1/qwen/generate",
+    poll: "/api/v1/qwen/record-info",
+  },
+
+  "4o-image": {
+    create: "/api/v1/4o-image/generate",
+    poll: "/api/v1/4o-image/record-info",
+  },
+
+  "midjourney-v7": {
+    create: "/api/v1/midjourney/imagine",
+    poll: "/api/v1/midjourney/record-info",
+  },
+
+  "ideogram-v3": {
+    create: "/api/v1/ideogram/generate",
+    poll: "/api/v1/ideogram/record-info",
+  },
+
+  "recraft": {
+    create: "/api/v1/recraft/generate",
+    poll: "/api/v1/recraft/record-info",
+  },
+};
+
+function normalizeModelId(uiModel: string | undefined | null): string {
+  if (!uiModel) return "flux-kontext";
+
+  const key = uiModel.toLowerCase().trim().replace(/\s+/g, "-");
+
+  // Явные алиасы/исправления (важно: без частичных replace, чтобы не получать seedream-4.0.0)
+  const aliases: Record<string, string> = {
+    "flux": "flux-kontext",
+    "flux-kontext": "flux-kontext",
+    "flux-kontекст": "flux-kontext",
+    "flux-kontext-pro": "flux-kontext",
+
+    "nano-banana": "nano-banana",
+    "nano-banana-pro": "nano-banana-pro",
+
+    "seedream": "seedream",
+    "seedream-4": "seedream-4.0",
+    "seedream-4.0": "seedream-4.0",
+    "seedream-4.0.0": "seedream-4.0",
+    "seedream-4.5": "seedream-4.5",
+    "seedream-4.5.0": "seedream-4.5",
+
+    "qwen": "qwen-image",
+    "qwen-image": "qwen-image",
+
+    "4o": "4o-image",
+    "4o-image": "4o-image",
+
+    "midjourney": "midjourney-v7",
+    "midjourney-v7": "midjourney-v7",
+
+    "ideogram": "ideogram-v3",
+    "ideogram-v3": "ideogram-v3",
+
+    "recraft": "recraft",
+  };
+
+  return aliases[key] || key;
+}
+
+// Безопасная сборка URL: принимает либо endpoint (/api/...), либо полный URL.
+function buildUrl(endpointOrUrl: string): string {
+  const raw = (endpointOrUrl || "").trim();
+  if (!raw) throw new Error("Empty endpoint");
+
+  // Если уже полный URL — возвращаем, но чиним частый баг с двойным base URL.
+  if (/^https?:\/\//i.test(raw)) {
+    const fixed = raw.replace(
+      /^https?:\/\/api\.kie\.aihttps?:\/\/api\.kie\.ai/i,
+      KIE_API_BASE
+    );
+    console.log("Built URL:", fixed);
+    return fixed;
+  }
+
+  const cleanEndpoint = raw.startsWith("/") ? raw : `/${raw}`;
+  const url = `${KIE_API_BASE}${cleanEndpoint}`;
+  console.log("Built URL:", url);
+  return url;
+}
+
+function withTaskId(pollEndpoint: string, taskId: string): string {
+  const sep = pollEndpoint.includes("?") ? "&" : "?";
+  return `${pollEndpoint}${sep}taskId=${encodeURIComponent(taskId)}`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,10 +166,15 @@ serve(async (req) => {
       ? `${prompt}, ${style} style` 
       : prompt;
 
-    // CORRECT URL construction - only flux-kontext endpoint
-    const createUrl = `${KIE_API_BASE}/api/v1/flux/kontext/generate`;
-    
-    console.log('Create URL:', createUrl);
+    const modelId = normalizeModelId(model);
+    const endpoints = MODEL_ENDPOINTS[modelId] || MODEL_ENDPOINTS["flux-kontext"];
+
+    console.log("Normalized Model ID:", modelId);
+    console.log("Create Endpoint:", endpoints.create);
+    console.log("Poll Endpoint:", endpoints.poll);
+
+    const createUrl = buildUrl(endpoints.create);
+    console.log("Create URL:", createUrl);
 
     const requestBody = {
       prompt: fullPrompt,
@@ -125,9 +251,8 @@ serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       try {
-        // CORRECT: Build poll URL without duplication
-        const pollUrl = `${KIE_API_BASE}/api/v1/flux/kontext/record-info?taskId=${taskId}`;
-        
+        const pollUrl = buildUrl(withTaskId(endpoints.poll, String(taskId)));
+
         console.log(`Poll attempt ${attempts + 1}/${maxAttempts}: ${pollUrl}`);
         
         const statusResponse = await fetch(pollUrl, {
