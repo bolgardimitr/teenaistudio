@@ -184,7 +184,7 @@ export default function PhotoStudio() {
   const referenceInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<GenerationMode>('text-to-image');
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('flux-kontext');
   const [prompt, setPrompt] = useState('');
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [changeStrength, setChangeStrength] = useState([0.5]);

@@ -173,9 +173,9 @@ export default function VideoStudio() {
 
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('videoStudio_selectedModel') || '';
+      return localStorage.getItem('videoStudio_selectedModel') || 'luma-dream';
     }
-    return '';
+    return 'luma-dream';
   });
   const [prompt, setPrompt] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
